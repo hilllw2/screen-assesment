@@ -35,11 +35,18 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // Allow assessment video assets for candidates (no login required)
+  const path = request.nextUrl.pathname
+  const isAssessmentVideo =
+    path.startsWith('/Verbal-Assessment-Videos/') ||
+    path.startsWith('/Written-Assessment-Videos/')
+
   if (
     !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/test/') &&
-    request.nextUrl.pathname !== '/'
+    !path.startsWith('/login') &&
+    !path.startsWith('/test/') &&
+    path !== '/' &&
+    !isAssessmentVideo
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()

@@ -231,11 +231,13 @@ export default function VerbalAssessmentPage() {
           <CardContent className="space-y-4">
             
             {phase === "instruction" && (
-                <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                <div className="aspect-video min-h-[400px] w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
                 <video
                     src="/Verbal-Assessment-Videos/Verbal-Assessment-Video-7-Start-Instructions.mp4"
-                    className="w-full h-full"
+                    className="w-full h-full object-contain"
                     autoPlay
+                    playsInline
+                    muted
                     onEnded={handleVideoEnded}
                     controls={false}
                 />
@@ -264,12 +266,14 @@ export default function VerbalAssessmentPage() {
             )}
 
             {(phase === "preparation" || phase === "question") && (
-              <div className="aspect-video bg-black rounded-lg overflow-hidden">
+              <div className="aspect-video min-h-[400px] w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
                 <video
                   key={`${phase}-${currentQuestion}`}
                   src={phase === "preparation" ? question.preparationVideo : question.questionVideo}
-                  className="w-full h-full"
+                  className="w-full h-full object-contain"
                   autoPlay
+                  playsInline
+                  muted
                   onEnded={handleVideoEnded}
                 />
               </div>

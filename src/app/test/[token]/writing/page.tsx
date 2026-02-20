@@ -150,11 +150,13 @@ export default function WritingAssessmentPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {!videoEnded ? (
-              <div className="aspect-video bg-black rounded-lg overflow-hidden">
+              <div className="aspect-video min-h-[400px] w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
                 <video
                   ref={videoRef}
-                  className="w-full h-full"
+                  className="w-full h-full object-contain"
                   autoPlay
+                  playsInline
+                  muted
                   onEnded={handleVideoEnded}
                 >
                   <source src={task.video} type="video/mp4" />

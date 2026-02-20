@@ -45,11 +45,12 @@ export default function GuidelinesPage() {
             <CardTitle className="text-2xl">Assessment Guidelines & Overview</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="aspect-video bg-black rounded-lg overflow-hidden">
+            <div className="aspect-video min-h-[400px] w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
               <video
                 ref={videoRef}
-                className="w-full h-full"
+                className="w-full h-full object-contain"
                 controls
+                playsInline
                 onEnded={() => setVideoEnded(true)}
               >
                 <source src="/Verbal-Assessment-Videos/Verbal-Assessment-Overview.mp4" type="video/mp4" />
