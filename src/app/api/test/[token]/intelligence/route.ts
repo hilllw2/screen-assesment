@@ -26,19 +26,27 @@ export async function GET(
       .eq("is_active", true)
       .limit(30);
 
-    if (error || !questions) {
-       console.error("Error fetching questions:", error);
-       return NextResponse.json({ questions: [] });
+    if (error) {
+      console.error("Error fetching intelligence questions:", error);
+      return NextResponse.json(
+        { error: "Failed to load questions", questions: [] },
+        { status: 500 }
+      );
+    }
+
+    const list = questions ?? [];
+    if (list.length === 0) {
+      console.warn("No intelligence questions found in database. Run: npx tsx scripts/seed-questions.ts");
     }
 
     // Shuffle questions
-    const shuffled = [...questions].sort(() => Math.random() - 0.5);
+    const shuffled = [...list].sort(() => Math.random() - 0.5);
 
     return NextResponse.json({ questions: shuffled });
   } catch (error) {
     console.error("Error in intelligence GET:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", questions: [] },
       { status: 500 }
     );
   }

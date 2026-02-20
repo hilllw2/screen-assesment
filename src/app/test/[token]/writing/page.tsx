@@ -125,7 +125,7 @@ export default function WritingAssessmentPage() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold">Writing Assessment</h1>
-            <p className="text-muted-foreground">Random Task</p>
+            <p className="text-muted-foreground">Task Instructions</p>
           </div>
           {videoEnded && (
             <div className="text-right">
@@ -156,7 +156,6 @@ export default function WritingAssessmentPage() {
                   className="w-full h-full object-contain"
                   autoPlay
                   playsInline
-                  muted
                   onEnded={handleVideoEnded}
                 >
                   <source src={task.video} type="video/mp4" />

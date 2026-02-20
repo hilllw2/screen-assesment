@@ -57,14 +57,20 @@ export default function IntelligenceTestPage() {
   }, [loading, timeLeft]);
 
   const fetchQuestions = async () => {
+    setLoading(true);
     try {
       const response = await fetch(
         `/api/test/${token}/intelligence?submissionId=${submissionId}`
       );
       const data = await response.json();
-      setQuestions(data.questions);
+      const list = Array.isArray(data?.questions) ? data.questions : [];
+      setQuestions(list);
+      if (!response.ok) {
+        console.error("Intelligence API error:", data?.error || response.statusText);
+      }
     } catch (error) {
       console.error("Error fetching questions:", error);
+      setQuestions([]);
     } finally {
       setLoading(false);
     }
@@ -109,7 +115,30 @@ export default function IntelligenceTestPage() {
   const progress = (answeredCount / questions.length) * 100;
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading questions...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-lg text-muted-foreground">Loading questions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 px-4 flex items-center justify-center">
+        <div className="max-w-md text-center space-y-4">
+          <h1 className="text-2xl font-bold">Intelligence Test</h1>
+          <p className="text-muted-foreground">
+            No questions are available right now. The question bank may not be loaded in the database.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Please contact your administrator to add intelligence questions, or try again later.
+          </p>
+          <Button onClick={() => fetchQuestions()}>Try again</Button>
+        </div>
+      </div>
+    );
   }
 
   return (

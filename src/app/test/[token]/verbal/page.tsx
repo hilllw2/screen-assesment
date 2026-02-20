@@ -248,9 +248,8 @@ export default function VerbalAssessmentPage() {
                     className="w-full h-full object-contain"
                     autoPlay
                     playsInline
-                    muted
                     onEnded={handleVideoEnded}
-                    controls={false}
+                    controls
                 />
                 </div>
             )}
@@ -285,7 +284,6 @@ export default function VerbalAssessmentPage() {
                   className="w-full h-full object-contain"
                   autoPlay
                   playsInline
-                  muted
                   onEnded={handleVideoEnded}
                 />
               </div>
