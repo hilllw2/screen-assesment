@@ -61,6 +61,17 @@ export default function VerbalAssessmentPage() {
     };
   }, []);
 
+  // Force play when switching to preparation/question video (browsers often block autoplay on 2nd+ video)
+  useEffect(() => {
+    if (phase !== "preparation" && phase !== "question") return;
+    const video = videoRef.current;
+    if (!video) return;
+    const id = requestAnimationFrame(() => {
+      video.play().catch(() => {});
+    });
+    return () => cancelAnimationFrame(id);
+  }, [phase, currentQuestion]);
+
   const handleVideoEnded = () => {
     if (phase === "instruction") {
       setPhase("mic_check");
@@ -268,6 +279,7 @@ export default function VerbalAssessmentPage() {
             {(phase === "preparation" || phase === "question") && (
               <div className="aspect-video min-h-[400px] w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
                 <video
+                  ref={videoRef}
                   key={`${phase}-${currentQuestion}`}
                   src={phase === "preparation" ? question.preparationVideo : question.questionVideo}
                   className="w-full h-full object-contain"
