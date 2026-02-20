@@ -1,4 +1,4 @@
-import { AntiCheatLayer } from "@/components/test/AntiCheatLayer";
+import AntiCheatLayer from "@/components/test/AntiCheatLayer";
 
 export default function TestLayout({
   children,

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useTestProctoring } from "@/components/test/AntiCheatLayer";
+
 
 export default function GuidelinesPage() {
   const params = useParams();
@@ -13,7 +13,7 @@ export default function GuidelinesPage() {
   const token = params.token as string;
   const submissionId = searchParams.get("sid");
   
-  const { startProctoring, error: proctorError } = useTestProctoring();
+
   
   const [videoEnded, setVideoEnded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -26,24 +26,15 @@ export default function GuidelinesPage() {
 
   const handleBeginAssessment = async () => {
     setLoading(true);
-    const success = await startProctoring();
-    
-    if (success) {
-      // Update submission phase
-      await fetch(`/api/test/${token}/update-phase`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          submissionId,
-          phase: "writing",
-        }),
-      });
-
-      // Navigate to writing assessment
-      router.push(`/test/${token}/writing?sid=${submissionId}`);
-    } else {
-      setLoading(false);
-    }
+    await fetch(`/api/test/${token}/update-phase`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        submissionId,
+        phase: "writing",
+      }),
+    });
+    router.push(`/test/${token}/writing?sid=${submissionId}`);
   };
 
   return (
@@ -73,11 +64,7 @@ export default function GuidelinesPage() {
               </p>
             </div>
 
-            {proctorError && (
-              <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                <p className="text-sm text-red-800">{proctorError}</p>
-              </div>
-            )}
+
 
             <div className="flex justify-center pt-4">
               <Button

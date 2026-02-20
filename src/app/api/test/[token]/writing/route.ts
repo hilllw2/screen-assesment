@@ -18,28 +18,12 @@ export async function POST(
       );
     }
 
-    // Map task number to column name
-    const columnMap: { [key: number]: string } = {
-      1: "writing_part_1_text",
-      2: "writing_part_2_text",
-      3: "writing_part_3_text",
-      4: "writing_part_4_text",
-      5: "writing_part_5_text",
-    };
 
-    const columnName = columnMap[taskNumber];
-    if (!columnName) {
-      return NextResponse.json(
-        { error: "Invalid task number" },
-        { status: 400 }
-      );
-    }
-
-    // Update submission with writing response
+    // Always save to writing_part_1_text
     const { error } = await supabase
       .from("submissions")
       .update({
-        [columnName]: text,
+        writing_part_1_text: text,
         updated_at: new Date().toISOString(),
       })
       .eq("id", submissionId);

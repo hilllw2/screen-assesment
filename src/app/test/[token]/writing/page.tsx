@@ -42,10 +42,11 @@ export default function WritingAssessmentPage() {
   const token = params.token as string;
   const submissionId = searchParams.get("sid");
 
-  const [currentTask, setCurrentTask] = useState(0);
+  // Pick a random task index on first render
+  const [randomTaskIndex] = useState(() => Math.floor(Math.random() * WRITING_TASKS.length));
   const [videoEnded, setVideoEnded] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(WRITING_TASKS[0].timeLimit);
-  const [responses, setResponses] = useState<string[]>(["", "", "", "", ""]);
+  const [timeLeft, setTimeLeft] = useState(WRITING_TASKS[randomTaskIndex].timeLimit);
+  const [response, setResponse] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -59,24 +60,22 @@ export default function WritingAssessmentPage() {
 
   useEffect(() => {
     if (videoEnded) {
-      // Start timer when video ends
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            handleNextTask();
+            handleSubmit();
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
     }
-
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
     };
-  }, [videoEnded, currentTask]);
+  }, [videoEnded]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -88,44 +87,21 @@ export default function WritingAssessmentPage() {
     setVideoEnded(true);
   };
 
-  const handleNextTask = async () => {
+  const handleSubmit = async () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
-
-    // Save current response
-    await saveResponse(currentTask, responses[currentTask]);
-
-    if (currentTask < WRITING_TASKS.length - 1) {
-      // Move to next task
-      setCurrentTask(currentTask + 1);
-      setVideoEnded(false);
-      setTimeLeft(WRITING_TASKS[currentTask + 1].timeLimit);
-    } else {
-      // All tasks complete, move to next phase
-      await completeWritingAssessment();
-    }
-  };
-
-  const saveResponse = async (taskIndex: number, text: string) => {
+    setSubmitting(true);
     try {
       await fetch(`/api/test/${token}/writing`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           submissionId,
-          taskNumber: taskIndex + 1,
-          text,
+          taskNumber: 1, // Always save to writing_part_1_text
+          text: response,
         }),
       });
-    } catch (error) {
-      console.error("Error saving response:", error);
-    }
-  };
-
-  const completeWritingAssessment = async () => {
-    setSubmitting(true);
-    try {
       await fetch(`/api/test/${token}/update-phase`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -134,14 +110,14 @@ export default function WritingAssessmentPage() {
           phase: "intelligence",
         }),
       });
-
       router.push(`/test/${token}/intelligence?sid=${submissionId}`);
     } catch (error) {
-      console.error("Error completing writing assessment:", error);
+      console.error("Error submitting writing assessment:", error);
     }
+    setSubmitting(false);
   };
 
-  const task = WRITING_TASKS[currentTask];
+  const task = WRITING_TASKS[randomTaskIndex];
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -149,9 +125,7 @@ export default function WritingAssessmentPage() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold">Writing Assessment</h1>
-            <p className="text-muted-foreground">
-              Task {currentTask + 1} of {WRITING_TASKS.length}
-            </p>
+            <p className="text-muted-foreground">Random Task</p>
           </div>
           {videoEnded && (
             <div className="text-right">
@@ -170,7 +144,7 @@ export default function WritingAssessmentPage() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle>Task {currentTask + 1} Instructions</CardTitle>
+              <CardTitle>Task Instructions</CardTitle>
               <Badge>{videoEnded ? "Recording Response" : "Watch Video"}</Badge>
             </div>
           </CardHeader>
@@ -193,24 +167,18 @@ export default function WritingAssessmentPage() {
                   Your Response
                 </label>
                 <Textarea
-                  value={responses[currentTask]}
-                  onChange={(e) => {
-                    const newResponses = [...responses];
-                    newResponses[currentTask] = e.target.value;
-                    setResponses(newResponses);
-                  }}
+                  value={response}
+                  onChange={(e) => setResponse(e.target.value)}
                   placeholder="Type your response here..."
                   className="min-h-[300px]"
                   autoFocus
                 />
                 <div className="mt-4 flex justify-between items-center">
                   <p className="text-sm text-muted-foreground">
-                    {responses[currentTask].length} characters
+                    {response.length} characters
                   </p>
-                  <Button onClick={handleNextTask} disabled={submitting}>
-                    {currentTask < WRITING_TASKS.length - 1
-                      ? "Save & Continue to Next Task"
-                      : "Submit Writing Assessment"}
+                  <Button onClick={handleSubmit} disabled={submitting || !response}>
+                    Submit Writing Assessment
                   </Button>
                 </div>
               </div>
@@ -224,22 +192,6 @@ export default function WritingAssessmentPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Progress indicator */}
-        <div className="flex gap-2 justify-center">
-          {WRITING_TASKS.map((_, index) => (
-            <div
-              key={index}
-              className={`h-2 w-12 rounded-full ${
-                index === currentTask
-                  ? "bg-blue-600"
-                  : index < currentTask
-                  ? "bg-green-600"
-                  : "bg-gray-300"
-              }`}
-            />
-          ))}
-        </div>
       </div>
     </div>
   );

@@ -20,56 +20,13 @@ export const metadata: Metadata = {
   description: "Professional candidate screening and assessment platform",
 };
 
-import React, { useEffect } from "react";
+
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  useEffect(() => {
-    // Disable right-click context menu
-    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
-    // Disable copy, cut, paste
-    const handleCopyCutPaste = (e: ClipboardEvent) => e.preventDefault();
-    // Attempt to block PrintScreen and common copy shortcuts
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.key === "PrintScreen" ||
-        (e.ctrlKey && (e.key === "c" || e.key === "v" || e.key === "x")) ||
-        (e.metaKey && (e.key === "c" || e.key === "v" || e.key === "x"))
-      ) {
-        document.body.style.filter = "blur(8px)";
-        setTimeout(() => {
-          document.body.style.filter = "";
-        }, 1000);
-        e.preventDefault();
-      }
-    };
-    // Blur on window blur (when user switches away)
-    const handleBlur = () => {
-      document.body.style.filter = "blur(8px)";
-    };
-    const handleFocus = () => {
-      document.body.style.filter = "";
-    };
-    document.addEventListener("contextmenu", handleContextMenu);
-    document.addEventListener("copy", handleCopyCutPaste);
-    document.addEventListener("cut", handleCopyCutPaste);
-    document.addEventListener("paste", handleCopyCutPaste);
-    document.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("blur", handleBlur);
-    window.addEventListener("focus", handleFocus);
-    return () => {
-      document.removeEventListener("contextmenu", handleContextMenu);
-      document.removeEventListener("copy", handleCopyCutPaste);
-      document.removeEventListener("cut", handleCopyCutPaste);
-      document.removeEventListener("paste", handleCopyCutPaste);
-      document.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("blur", handleBlur);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, []);
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -77,6 +34,7 @@ export default function RootLayout({
       >
         <SkipToContent />
         <TooltipProvider>
+          <AntiCheatLayer />
           <main id="main-content">
             {children}
           </main>
@@ -86,3 +44,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+import AntiCheatLayer from "@/components/test/AntiCheatLayer";
