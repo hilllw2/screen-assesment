@@ -137,10 +137,7 @@ export default function VerbalAssessmentPage() {
 
     console.log(`📼 Audio chunks for question ${currentQuestion + 1}:`, audioChunksRef.current.length);
 
-    // Upload current question's audio
-    await uploadQuestionRecording(currentQuestion);
-
-    // Move to next question or finish
+    // Move to next question or finish (don't upload individual questions)
     if (currentQuestion < VERBAL_QUESTIONS.length - 1) {
       setCurrentQuestion(prev => prev + 1);
       setPhase("preparation");
@@ -151,12 +148,16 @@ export default function VerbalAssessmentPage() {
 
   const finishAssessment = async () => {
     setPhase("uploading");
-    if (mediaRecorderRef.current) {
+    
+    // Stop the recorder to get any final data
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
+      // Wait for final ondataavailable event
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
 
-    // Save all URLs to DB
-    await saveAllRecordingsToDb();
+    // Combine all 3 recordings into one audio file and upload
+    await uploadCombinedRecording();
 
     // Complete phase
     await fetch(`/api/test/${token}/update-phase`, {
@@ -171,21 +172,21 @@ export default function VerbalAssessmentPage() {
     router.push(`/test/${token}/finish?sid=${submissionId}`);
   };
 
-  const uploadQuestionRecording = async (questionIndex: number) => {
+  const uploadCombinedRecording = async () => {
     if (audioChunksRef.current.length === 0) {
-      console.warn(`⚠️ No audio recorded for question ${questionIndex + 1}`);
-      alert(`No audio was recorded for question ${questionIndex + 1}. Please ensure your microphone is working.`);
+      console.warn(`⚠️ No audio recorded for verbal assessment`);
+      alert(`No audio was recorded. Please ensure your microphone is working.`);
       return;
     }
 
-    const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-    console.log(`📤 Uploading question ${questionIndex + 1}: ${blob.size} bytes from ${audioChunksRef.current.length} chunks`);
+    // Combine all chunks into one blob
+    const combinedBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+    console.log(`📤 Uploading combined verbal recording: ${combinedBlob.size} bytes from ${audioChunksRef.current.length} chunks`);
     
     const formData = new FormData();
-    formData.append("file", blob);
+    formData.append("file", combinedBlob);
     formData.append("type", "audio");
     formData.append("submissionId", submissionId!);
-    formData.append("questionNumber", String(questionIndex + 1));
 
     try {
       const res = await fetch("/api/upload", {
@@ -196,43 +197,40 @@ export default function VerbalAssessmentPage() {
       if (!res.ok) throw new Error("Upload failed");
 
       const { url } = await res.json();
-      uploadedUrlsRef.current[questionIndex] = url;
-      console.log(`✅ Uploaded question ${questionIndex + 1}:`, url);
+      console.log(`✅ Uploaded combined recording:`, url);
+
+      // Save to audio_recording_url in DB
+      await saveRecordingToDb(url);
 
     } catch (error) {
-      console.error(`Upload failed for question ${questionIndex + 1}:`, error);
-      alert(`Upload failed for question ${questionIndex + 1}. Please try again.`);
+      console.error(`Upload failed for combined recording:`, error);
+      alert(`Upload failed. Please try again.`);
       throw error;
     }
   };
 
-  const saveAllRecordingsToDb = async () => {
+  const saveRecordingToDb = async (audioUrl: string) => {
     try {
-      console.log("💾 Saving verbal recordings to DB...", {
-        submissionId,
-        urls: uploadedUrlsRef.current,
-      });
+      console.log("💾 Saving combined audio to DB:", { submissionId, audioUrl });
       
       const response = await fetch(`/api/test/${token}/verbal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           submissionId,
-          verbalQuestion1Url: uploadedUrlsRef.current[0] || null,
-          verbalQuestion2Url: uploadedUrlsRef.current[1] || null,
-          verbalQuestion3Url: uploadedUrlsRef.current[2] || null,
+          audioUrl,
         }),
       });
       
       if (!response.ok) {
         const data = await response.json();
-        console.error("❌ Failed to save recordings to DB:", data);
-        throw new Error(data.error || "Failed to save recordings");
+        console.error("❌ Failed to save recording to DB:", data);
+        throw new Error(data.error || "Failed to save recording");
       }
       
-      console.log("✅ Recordings saved to DB successfully");
+      console.log("✅ Recording saved to DB successfully");
     } catch (error) {
-      console.error("❌ Failed to save recordings to DB:", error);
+      console.error("❌ Failed to save recording to DB:", error);
       throw error;
     }
   };

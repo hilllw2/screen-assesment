@@ -9,7 +9,7 @@ export async function POST(
     const { token } = await params;
     const supabase = createServiceRoleClient();
     const body = await request.json();
-    const { submissionId, verbalQuestion1Url, verbalQuestion2Url, verbalQuestion3Url } = body;
+    const { submissionId, audioUrl } = body;
 
     if (!submissionId) {
       return NextResponse.json(
@@ -18,37 +18,33 @@ export async function POST(
       );
     }
 
-    // Update submission with individual verbal question URLs
-    console.log("💾 Saving verbal question URLs to DB:", {
+    // Update submission with combined audio recording URL
+    console.log("💾 Saving combined verbal audio to DB:", {
       submissionId,
-      verbalQuestion1Url: verbalQuestion1Url || "null",
-      verbalQuestion2Url: verbalQuestion2Url || "null",
-      verbalQuestion3Url: verbalQuestion3Url || "null",
+      audioUrl: audioUrl || "null",
     });
     
     const { error, data } = await supabase
       .from("submissions")
       .update({
-        verbal_question_1_url: verbalQuestion1Url,
-        verbal_question_2_url: verbalQuestion2Url,
-        verbal_question_3_url: verbalQuestion3Url,
+        audio_recording_url: audioUrl,
         updated_at: new Date().toISOString(),
       })
       .eq("id", submissionId)
       .select();
 
     if (error) {
-      console.error("❌ Error saving verbal responses:", error);
+      console.error("❌ Error saving verbal recording:", error);
       return NextResponse.json(
-        { error: "Failed to save responses", details: error.message },
+        { error: "Failed to save recording", details: error.message },
         { status: 500 }
       );
     }
 
-    console.log("✅ Verbal responses saved successfully:", data);
+    console.log("✅ Verbal recording saved successfully:", data);
 
     return NextResponse.json({
-      message: "Verbal responses saved successfully",
+      message: "Verbal recording saved successfully",
     });
   } catch (error) {
     console.error("Error in verbal API:", error);
