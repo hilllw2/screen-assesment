@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,9 +10,9 @@ export default async function TestLandingPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const supabase = await createClient();
-  
-  // Fetch test link and test details
+  const supabase = createServiceRoleClient();
+
+  // Fetch test link and test details (candidates are not logged in; service role bypasses RLS)
   const { data: testLink, error } = await supabase
     .from("test_links")
     .select(`

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 export async function POST(
   request: NextRequest,
@@ -7,7 +7,7 @@ export async function POST(
 ) {
   try {
     const { token } = await params;
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
     const body = await request.json();
     const { submissionId, screenUrl } = body;
 
@@ -24,8 +24,7 @@ export async function POST(
         screen_recording_url: screenUrl,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", submissionId)
-      .eq("token", token); // Security check to match token
+      .eq("id", submissionId);
 
     if (error) {
       console.error("Database update error:", error);

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = createServiceRoleClient();
     const formData = await request.formData();
     
     const name = formData.get("name") as string;

@@ -35,16 +35,20 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Allow assessment video assets for candidates (no login required)
+  // Allow paths that candidates use without logging in (test pages, test APIs, upload, video assets)
   const path = request.nextUrl.pathname
   const isAssessmentVideo =
     path.startsWith('/Verbal-Assessment-Videos/') ||
     path.startsWith('/Written-Assessment-Videos/')
+  const isTestApi = path.startsWith('/api/test/')
+  const isUploadApi = path === '/api/upload'
 
   if (
     !user &&
     !path.startsWith('/login') &&
     !path.startsWith('/test/') &&
+    !isTestApi &&
+    !isUploadApi &&
     path !== '/' &&
     !isAssessmentVideo
   ) {

@@ -64,8 +64,23 @@ export default function IntelligenceTestPage() {
       const response = await fetch(
         `/api/test/${token}/intelligence?submissionId=${submissionId}`
       );
-      const data = await response.json();
-      const list = Array.isArray(data?.questions) ? data.questions : [];
+      const text = await response.text();
+      if (text.startsWith("<")) {
+        setQuestions([]);
+        setLoadError(
+          "Server returned a page instead of data (e.g. redirect to login). Check that test link is correct and try again."
+        );
+        return;
+      }
+      let data: { questions?: unknown[]; error?: string; details?: string; debug?: { totalActive: number; categoriesSeen?: string[] } };
+      try {
+        data = JSON.parse(text);
+      } catch {
+        setQuestions([]);
+        setLoadError("Invalid response from server. Try again.");
+        return;
+      }
+      const list = Array.isArray(data?.questions) ? (data.questions as Question[]) : [];
       setQuestions(list);
       if (!response.ok) {
         const msg = data?.error || response.statusText;
