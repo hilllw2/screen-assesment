@@ -87,16 +87,19 @@ export default function VerbalAssessmentPage() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       
+      // Create MediaRecorder with timeslice so data is available periodically
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
+          console.log(`📼 Audio chunk received: ${event.data.size} bytes`);
           audioChunksRef.current.push(event.data);
         }
       };
       
-      mediaRecorder.start();
+      // Start with timeslice (1000ms) so chunks are available as we record
+      mediaRecorder.start(1000);
       mediaRecorder.pause();
       
       setMicReady(true);
@@ -122,11 +125,17 @@ export default function VerbalAssessmentPage() {
   };
 
   const proceedToNext = async () => {
-    // Pause recording and upload current question
+    // Request final data and pause recording for current question
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      // Request any pending data before pausing
+      mediaRecorderRef.current.requestData();
+      // Wait a bit for the data event to fire
+      await new Promise(resolve => setTimeout(resolve, 100));
       mediaRecorderRef.current.pause();
       setIsRecordingActive(false);
     }
+
+    console.log(`📼 Audio chunks for question ${currentQuestion + 1}:`, audioChunksRef.current.length);
 
     // Upload current question's audio
     await uploadQuestionRecording(currentQuestion);
@@ -164,11 +173,14 @@ export default function VerbalAssessmentPage() {
 
   const uploadQuestionRecording = async (questionIndex: number) => {
     if (audioChunksRef.current.length === 0) {
-      console.warn(`No audio recorded for question ${questionIndex + 1}`);
+      console.warn(`⚠️ No audio recorded for question ${questionIndex + 1}`);
+      alert(`No audio was recorded for question ${questionIndex + 1}. Please ensure your microphone is working.`);
       return;
     }
 
     const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+    console.log(`📤 Uploading question ${questionIndex + 1}: ${blob.size} bytes from ${audioChunksRef.current.length} chunks`);
+    
     const formData = new FormData();
     formData.append("file", blob);
     formData.append("type", "audio");
