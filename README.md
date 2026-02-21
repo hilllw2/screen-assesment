@@ -56,9 +56,13 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 **Important:** After deploying, set the same environment variables in Vercel:
 
 - **Project → Settings → Environment Variables**
-- Add at least: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and **`SUPABASE_SERVICE_ROLE_KEY`** (same value as in `.env.local`).
+- Add **Supabase** keys: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and **`SUPABASE_SERVICE_ROLE_KEY`** (same value as in `.env.local`).
+- Add **AWS S3** keys: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET_NAME` so that recordings (audio/video/screen) can be uploaded.
 - Redeploy after adding or changing variables.
 
-If these are missing in production, the Supabase SDK is still installed but **calls will fail or return no data** (e.g. no questions, data not saving).
+If these are missing in production:
+
+- The Supabase SDK is still installed but **calls will fail or return no data** (e.g. no questions, data not saving).
+- **Recordings will fail to upload** — verbal/upwork assessments won't work because audio and video uploads go to S3.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

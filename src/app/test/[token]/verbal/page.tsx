@@ -196,7 +196,12 @@ export default function VerbalAssessmentPage() {
 
   const saveAllRecordingsToDb = async () => {
     try {
-      await fetch(`/api/test/${token}/verbal`, {
+      console.log("💾 Saving verbal recordings to DB...", {
+        submissionId,
+        urls: uploadedUrlsRef.current,
+      });
+      
+      const response = await fetch(`/api/test/${token}/verbal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -206,8 +211,16 @@ export default function VerbalAssessmentPage() {
           verbalQuestion3Url: uploadedUrlsRef.current[2] || null,
         }),
       });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        console.error("❌ Failed to save recordings to DB:", data);
+        throw new Error(data.error || "Failed to save recordings");
+      }
+      
+      console.log("✅ Recordings saved to DB successfully");
     } catch (error) {
-      console.error("Failed to save recordings to DB:", error);
+      console.error("❌ Failed to save recordings to DB:", error);
       throw error;
     }
   };
