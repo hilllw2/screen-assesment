@@ -30,6 +30,7 @@ export default function IntelligenceTestPage() {
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!submissionId) {
@@ -58,6 +59,7 @@ export default function IntelligenceTestPage() {
 
   const fetchQuestions = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const response = await fetch(
         `/api/test/${token}/intelligence?submissionId=${submissionId}`
@@ -66,11 +68,18 @@ export default function IntelligenceTestPage() {
       const list = Array.isArray(data?.questions) ? data.questions : [];
       setQuestions(list);
       if (!response.ok) {
-        console.error("Intelligence API error:", data?.error || response.statusText);
+        const msg = data?.error || response.statusText;
+        setLoadError(msg);
+        console.error("Intelligence API error:", msg, data?.details);
+      } else if (list.length === 0 && data?.debug) {
+        setLoadError(
+          `No intelligence questions found. Active questions in DB: ${data.debug.totalActive}. Categories: ${data.debug.categoriesSeen?.join(", ") || "—"}.`
+        );
       }
     } catch (error) {
       console.error("Error fetching questions:", error);
       setQuestions([]);
+      setLoadError("Failed to load questions. Check the browser console.");
     } finally {
       setLoading(false);
     }
@@ -132,6 +141,11 @@ export default function IntelligenceTestPage() {
           <p className="text-muted-foreground">
             No questions are available right now. The question bank may not be loaded in the database.
           </p>
+          {loadError && (
+            <p className="text-sm text-amber-700 bg-amber-50 p-3 rounded border border-amber-200">
+              {loadError}
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">
             Please contact your administrator to add intelligence questions, or try again later.
           </p>

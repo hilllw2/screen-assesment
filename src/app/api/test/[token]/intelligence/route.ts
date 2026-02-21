@@ -18,35 +18,68 @@ export async function GET(
       );
     }
 
-    // Fetch 30 random intelligence questions
-    const { data: questions, error } = await supabase
+    // Fetch questions: include category so we can match case-insensitively (Postgres enum may be stored with different casing)
+    const { data: rawQuestions, error } = await supabase
       .from("questions")
-      .select("id, prompt, option_a, option_b, option_c, option_d")
-      .eq("category", "intelligence")
+      .select("id, prompt, option_a, option_b, option_c, option_d, category")
       .eq("is_active", true)
-      .limit(30);
+      .limit(100);
 
     if (error) {
       console.error("Error fetching intelligence questions:", error);
       return NextResponse.json(
-        { error: "Failed to load questions", questions: [] },
+        { error: "Failed to load questions", details: error.message, questions: [] },
         { status: 500 }
       );
     }
 
-    const list = questions ?? [];
-    if (list.length === 0) {
-      console.warn("No intelligence questions found in database. Run: npx tsx scripts/seed-questions.ts");
+    const all = rawQuestions ?? [];
+    const list = all
+      .filter((q) => String((q as { category?: string }).category ?? "").toLowerCase() === "intelligence")
+      .slice(0, 30);
+
+    if (list.length === 0 && all.length > 0) {
+      console.warn(
+        "Intelligence questions: 0 matched. Total active questions:",
+        all.length,
+        "Sample categories:",
+        [...new Set(all.map((q) => (q as { category?: string }).category))]
+      );
+    } else if (list.length === 0) {
+      console.warn("No active questions in database. Seed with: npx tsx scripts/seed-questions.ts");
     }
 
-    // Shuffle questions
-    const shuffled = [...list].sort(() => Math.random() - 0.5);
+    // Shuffle and return only needed fields
+    const shuffled = [...list]
+      .sort(() => Math.random() - 0.5)
+      .map(({ id, prompt, option_a, option_b, option_c, option_d }) => ({
+        id,
+        prompt,
+        option_a,
+        option_b,
+        option_c,
+        option_d,
+      }));
 
-    return NextResponse.json({ questions: shuffled });
+    const payload: { questions: typeof shuffled; debug?: { totalActive: number; categoriesSeen: string[] } } = {
+      questions: shuffled,
+    };
+    if (shuffled.length === 0 && process.env.NODE_ENV !== "production") {
+      payload.debug = {
+        totalActive: all.length,
+        categoriesSeen: [...new Set(all.map((q) => String((q as { category?: string }).category ?? "null")))],
+      };
+    }
+    return NextResponse.json(payload);
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal server error";
     console.error("Error in intelligence GET:", error);
+    const isEnvError = message.includes("SUPABASE_SERVICE_ROLE_KEY") || message.includes("Missing");
     return NextResponse.json(
-      { error: "Internal server error", questions: [] },
+      {
+        error: isEnvError ? "Server config: " + message : "Internal server error",
+        questions: [],
+      },
       { status: 500 }
     );
   }

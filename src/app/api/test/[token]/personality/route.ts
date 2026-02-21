@@ -18,24 +18,34 @@ export async function GET(
       );
     }
 
-    // Fetch 20 random personality questions
-    const { data: questions, error } = await supabase
+    // Fetch questions; filter by category in JS (handles enum casing, e.g. 'personality' vs 'Personality')
+    const { data: rawQuestions, error } = await supabase
       .from("questions")
-      .select("id, prompt, option_a, option_b, option_c, option_d")
-      .eq("category", "personality")
+      .select("id, prompt, option_a, option_b, option_c, option_d, category")
       .eq("is_active", true)
-      .limit(20);
+      .limit(100);
 
     if (error) {
-      console.error("Error fetching questions:", error);
+      console.error("Error fetching personality questions:", error);
       return NextResponse.json(
-        { error: "Failed to fetch questions" },
+        { error: "Failed to fetch questions", details: error.message },
         { status: 500 }
       );
     }
 
-    // Shuffle questions
-    const shuffled = questions.sort(() => Math.random() - 0.5).slice(0, 20);
+    const all = rawQuestions ?? [];
+    const list = all
+      .filter((q) => String((q as { category?: string }).category ?? "").toLowerCase() === "personality")
+      .slice(0, 20);
+
+    const shuffled = [...list].sort(() => Math.random() - 0.5).map(({ id, prompt, option_a, option_b, option_c, option_d }) => ({
+      id,
+      prompt,
+      option_a,
+      option_b,
+      option_c,
+      option_d,
+    }));
 
     return NextResponse.json({ questions: shuffled });
   } catch (error) {
