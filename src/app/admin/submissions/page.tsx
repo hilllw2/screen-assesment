@@ -63,6 +63,51 @@ export default function AdminSubmissionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [exportingId, setExportingId] = useState<string | null>(null);
+  const [exportingAll, setExportingAll] = useState(false);
+
+  // convert an array of submissions to CSV string
+  const submissionsToCSV = (data: Submission[]) => {
+    const header = [
+      'Candidate Name',
+      'Candidate Email',
+      'Test Title',
+      'Test Type',
+      'Status',
+      'Score',
+      'Started At',
+      'Submitted At',
+      'AI Scored',
+      'Exported'
+    ];
+
+    const rows = data.map((s) => [
+      s.candidate?.name || '',
+      s.candidate?.email || '',
+      s.test?.title || '',
+      s.test?.type || '',
+      s.status,
+      getTotalScore(s.scores),
+      new Date(s.started_at).toISOString(),
+      s.submitted_at ? new Date(s.submitted_at).toISOString() : '',
+      s.ai_scored ? 'Yes' : 'No',
+      s.exported ? 'Yes' : 'No'
+    ]);
+
+    const escape = (str: string) => `"${str.replace(/"/g, '""')}"`;
+    const csv = [header.join(','), ...rows.map((r) => r.map(escape).join(','))].join('\n');
+    return csv;
+  };
+
+  const downloadCSV = (csv: string, filename = 'submissions.csv') => {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   useEffect(() => {
     fetchSubmissions();
@@ -99,6 +144,32 @@ export default function AdminSubmissionsPage() {
       console.error('Error exporting submission:', error);
     } finally {
       setExportingId(null);
+    }
+  };
+
+  const handleExportAll = async () => {
+    if (filteredSubmissions.length === 0) return;
+    setExportingAll(true);
+
+    // generate CSV and download immediately, we don't worry about prior exported flags
+    const csv = submissionsToCSV(filteredSubmissions);
+    downloadCSV(csv);
+
+    // update the exported flag for every row we just included
+    try {
+      const ids = filteredSubmissions.map((s) => s.id);
+      const response = await fetch('/api/admin/submissions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'exportAll', ids })
+      });
+      if (response.ok) {
+        fetchSubmissions();
+      }
+    } catch (error) {
+      console.error('Error exporting all submissions:', error);
+    } finally {
+      setExportingAll(false);
     }
   };
 
@@ -162,9 +233,14 @@ export default function AdminSubmissionsPage() {
           <p className="text-gray-500 mt-1">View and manage submissions across all recruiters</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportAll}
+            disabled={exportingAll}
+          >
             <Filter className="h-4 w-4 mr-2" />
-            Export All
+            {exportingAll ? 'Exporting...' : 'Export All'}
           </Button>
         </div>
       </div>

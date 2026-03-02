@@ -108,5 +108,27 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: true });
   }
 
+  // bulk export (export all / selected)
+  if (action === 'exportAll') {
+    // body may contain an array of ids to update, otherwise update every row
+    const { ids } = body;
+    let query = supabase.from('submissions').update({
+      exported: true,
+      exported_at: new Date().toISOString(),
+      exported_by: user.id
+    });
+
+    if (Array.isArray(ids) && ids.length > 0) {
+      query = query.in('id', ids);
+    }
+
+    const { error } = await query;
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 }
