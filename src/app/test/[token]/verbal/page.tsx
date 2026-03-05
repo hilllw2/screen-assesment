@@ -40,6 +40,8 @@ export default function VerbalAssessmentPage() {
   const [isRecordingActive, setIsRecordingActive] = useState(false);
   const [micReady, setMicReady] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [needsManualPlay, setNeedsManualPlay] = useState(false);
+  const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -61,16 +63,31 @@ export default function VerbalAssessmentPage() {
     };
   }, []);
 
-  // Force play when switching to preparation/question video (browsers often block autoplay on 2nd+ video)
+  // Force play when switching video phases; incognito may still require a user click.
   useEffect(() => {
-    if (phase !== "preparation" && phase !== "question") return;
+    if (phase !== "instruction" && phase !== "preparation" && phase !== "question") return;
     const video = videoRef.current;
     if (!video) return;
+    setNeedsManualPlay(false);
+    setVideoLoadError(null);
     const id = requestAnimationFrame(() => {
-      video.play().catch(() => {});
+      video.play().catch(() => {
+        setNeedsManualPlay(true);
+      });
     });
     return () => cancelAnimationFrame(id);
   }, [phase, currentQuestion]);
+
+  const handleManualPlay = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      await video.play();
+      setNeedsManualPlay(false);
+    } catch {
+      setNeedsManualPlay(true);
+    }
+  };
 
   const handleVideoEnded = () => {
     if (phase === "instruction") {
@@ -265,15 +282,24 @@ export default function VerbalAssessmentPage() {
           <CardContent className="space-y-4">
             
             {phase === "instruction" && (
-                <div className="aspect-video min-h-[400px] w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
+                <div className="relative aspect-video min-h-[400px] w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
                 <video
+                    ref={videoRef}
                     src="/Verbal-Assessment-Videos/Verbal-Assessment-Video-7-Start-Instructions.mp4"
                     className="w-full h-full object-contain"
                     autoPlay
                     playsInline
+                    preload="auto"
                     onEnded={handleVideoEnded}
                     controls
+                    onPlay={() => setNeedsManualPlay(false)}
+                    onError={() => setVideoLoadError("Unable to load instruction video. Please refresh and try again.")}
                 />
+                {needsManualPlay && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/55">
+                    <Button onClick={handleManualPlay}>Play video</Button>
+                  </div>
+                )}
                 </div>
             )}
 
@@ -299,7 +325,7 @@ export default function VerbalAssessmentPage() {
             )}
 
             {(phase === "preparation" || phase === "question") && (
-              <div className="aspect-video min-h-[400px] w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
+              <div className="relative aspect-video min-h-[400px] w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
                 <video
                   ref={videoRef}
                   key={`${phase}-${currentQuestion}`}
@@ -307,8 +333,16 @@ export default function VerbalAssessmentPage() {
                   className="w-full h-full object-contain"
                   autoPlay
                   playsInline
+                  preload="auto"
                   onEnded={handleVideoEnded}
+                  onPlay={() => setNeedsManualPlay(false)}
+                  onError={() => setVideoLoadError("Unable to load question video. Please refresh and try again.")}
                 />
+                {needsManualPlay && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/55">
+                    <Button onClick={handleManualPlay}>Play video</Button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -332,6 +366,10 @@ export default function VerbalAssessmentPage() {
                  <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
                  <p>Uploading responses...</p>
                </div>
+            )}
+
+            {videoLoadError && (phase === "instruction" || phase === "preparation" || phase === "question") && (
+              <p className="text-sm text-center text-red-600">{videoLoadError}</p>
             )}
 
           </CardContent>

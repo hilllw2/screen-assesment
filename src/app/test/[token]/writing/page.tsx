@@ -45,6 +45,8 @@ export default function WritingAssessmentPage() {
   // Pick a random task index on first render
   const [randomTaskIndex] = useState(() => Math.floor(Math.random() * WRITING_TASKS.length));
   const [videoEnded, setVideoEnded] = useState(false);
+  const [needsManualPlay, setNeedsManualPlay] = useState(false);
+  const [videoLoadError, setVideoLoadError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(WRITING_TASKS[randomTaskIndex].timeLimit);
   const [response, setResponse] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -77,6 +79,24 @@ export default function WritingAssessmentPage() {
     };
   }, [videoEnded]);
 
+  useEffect(() => {
+    if (videoEnded) return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    setNeedsManualPlay(false);
+    setVideoLoadError(null);
+
+    const id = requestAnimationFrame(() => {
+      video.play().catch(() => {
+        // Incognito and low-engagement sessions may block autoplay with audio.
+        setNeedsManualPlay(true);
+      });
+    });
+
+    return () => cancelAnimationFrame(id);
+  }, [videoEnded, randomTaskIndex]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -85,6 +105,17 @@ export default function WritingAssessmentPage() {
 
   const handleVideoEnded = () => {
     setVideoEnded(true);
+  };
+
+  const handleManualPlay = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      await video.play();
+      setNeedsManualPlay(false);
+    } catch {
+      setNeedsManualPlay(true);
+    }
   };
 
   const handleSubmit = async () => {
@@ -150,17 +181,25 @@ export default function WritingAssessmentPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {!videoEnded ? (
-              <div className="aspect-video min-h-[400px] w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
+              <div className="relative aspect-video min-h-[400px] w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
                 <video
                   ref={videoRef}
                   className="w-full h-full object-contain"
                   autoPlay
                   playsInline
+                  preload="auto"
                   onEnded={handleVideoEnded}
+                  onPlay={() => setNeedsManualPlay(false)}
+                  onError={() => setVideoLoadError("Unable to load task video. Please refresh and try again.")}
                 >
                   <source src={task.video} type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
+                {needsManualPlay && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/55">
+                    <Button onClick={handleManualPlay}>Play video</Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div>
@@ -186,10 +225,15 @@ export default function WritingAssessmentPage() {
             )}
 
             {!videoEnded && (
-              <p className="text-sm text-muted-foreground text-center">
-                Please watch the video to see the task instructions. The timer will
-                start when the video ends.
-              </p>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground text-center">
+                  Please watch the video to see the task instructions. The timer will
+                  start when the video ends.
+                </p>
+                {videoLoadError && (
+                  <p className="text-sm text-center text-red-600">{videoLoadError}</p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
