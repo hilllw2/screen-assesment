@@ -1,42 +1,58 @@
-import { updateSession } from '@/lib/supabase/middleware'
-import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { NextRequest, NextResponse } from 'next/server'
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
 
-  // ── Public paths: skip ALL auth logic ──────────────────────────────
-  // Static assets served from public/ (videos, images, etc.)
-  const isPublicAsset =
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PUBLIC PATHS - No authentication required
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // 1. Static assets from public/ folder
+  if (
     path.startsWith('/Verbal-Assessment-Videos/') ||
     path.startsWith('/Written-Assessment-Videos/') ||
     path.startsWith('/_next/') ||
-    path === '/favicon.ico' ||
-    /\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp4|webm|html)$/i.test(path)
-
-  if (isPublicAsset) {
-    return NextResponse.next()
-  }
-
-  // Candidate test flow: no auth required
-  if (
-    path.startsWith('/test/') ||
-    path.startsWith('/api/test/') ||
-    path === '/api/upload' ||
-    path.startsWith('/api/videos/') ||
-    path === '/test-video-access' ||
-    path === '/video-test.html'
+    path === '/favicon.ico'
   ) {
     return NextResponse.next()
   }
 
-  // Login page: no auth required
-  if (path.startsWith('/login')) {
+  // 2. Static file extensions
+  if (/\.(svg|png|jpg|jpeg|gif|webp|ico|mp4|webm|html|css|js)$/i.test(path)) {
     return NextResponse.next()
   }
 
-  // ── Authenticated paths: run session + auth checks ────────────────
-  const response = await updateSession(request)
+  // 3. Candidate test flow - entire /test/* tree
+  if (path.startsWith('/test/') || path === '/test') {
+    return NextResponse.next()
+  }
+
+  // 4. Test-related API endpoints
+  if (
+    path.startsWith('/api/test/') ||
+    path === '/api/upload' ||
+    path.startsWith('/api/videos/')
+  ) {
+    return NextResponse.next()
+  }
+
+  // 5. Login page
+  if (path === '/login' || path.startsWith('/login')) {
+    return NextResponse.next()
+  }
+
+  // 6. Debug/test pages
+  if (path === '/test-video-access' || path === '/video-test.html') {
+    return NextResponse.next()
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AUTHENTICATED PATHS - Require login
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Create Supabase client for auth check
+  let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,40 +63,47 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          )
+          response = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
         },
       },
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Refresh session
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // Root: redirect logged-in users to their dashboard
-  if (user && path === '/') {
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+  // Root path: redirect logged-in users to dashboard
+  if (path === '/') {
+    if (user) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single()
 
-    if (userData) {
-      const url = request.nextUrl.clone()
-      url.pathname = userData.role === 'admin' ? '/admin/dashboard' : '/recruiter/dashboard'
-      return NextResponse.redirect(url)
+      const dashboard = userData?.role === 'admin' 
+        ? '/admin/dashboard' 
+        : '/recruiter/dashboard'
+      
+      return NextResponse.redirect(new URL(dashboard, request.url))
     }
+    // Not logged in at root - show home or redirect to login
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // No user on a protected route → redirect to login
-  if (!user && path !== '/') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+  // Protected routes: require authentication
+  if (!user) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Admin routes: require admin role
-  if (path.startsWith('/admin') && user) {
+  if (path.startsWith('/admin')) {
     const { data: userData } = await supabase
       .from('users')
       .select('role')
@@ -88,17 +111,25 @@ export async function proxy(request: NextRequest) {
       .single()
 
     if (userData?.role !== 'admin') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/recruiter/dashboard'
-      return NextResponse.redirect(url)
+      return NextResponse.redirect(new URL('/recruiter/dashboard', request.url))
     }
   }
 
   return response
 }
 
+// Matcher config - tells Next.js which paths to run proxy on
+// This is an optimization; the proxy function handles all logic internally
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|Verbal-Assessment-Videos|Written-Assessment-Videos|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|webm)$).*)',
+    /*
+     * Match all paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization)
+     * - favicon.ico
+     * - Video folders
+     * - Common static file extensions
+     */
+    '/((?!_next/static|_next/image|favicon.ico|Verbal-Assessment-Videos|Written-Assessment-Videos|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp4|webm)$).*)',
   ],
 }
