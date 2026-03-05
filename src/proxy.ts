@@ -5,6 +5,20 @@ import { createServerClient } from '@supabase/ssr'
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
 
+  // Test video page should be accessible without auth
+  if (path === '/test-video-access') {
+    return NextResponse.next()
+  }
+
+  // Candidate test paths should bypass all auth checks
+  if (
+    path.startsWith('/test/') ||
+    path.startsWith('/api/test/') ||
+    path === '/api/upload'
+  ) {
+    return NextResponse.next()
+  }
+
   // Update session
   const response = await updateSession(request)
   
@@ -27,6 +41,21 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  // If user is logged in and on root, redirect to appropriate dashboard
+  if (user && path === '/') {
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (userData) {
+      const url = request.nextUrl.clone()
+      url.pathname = userData.role === 'admin' ? '/admin/dashboard' : '/recruiter/dashboard'
+      return NextResponse.redirect(url)
+    }
+  }
 
   // Protect admin routes
   if (path.startsWith('/admin')) {
@@ -63,7 +92,13 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/admin/:path*',
-    '/recruiter/:path*',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|Verbal-Assessment-Videos|Written-Assessment-Videos|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|webm)$).*)',
   ],
 }

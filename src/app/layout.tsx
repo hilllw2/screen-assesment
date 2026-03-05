@@ -34,6 +34,7 @@ export default function RootLayout({
       >
         <SkipToContent />
         <TooltipProvider>
+          <AntiCheatLayer />
           <main id="main-content">
             {children}
           </main>
@@ -43,3 +44,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+import AntiCheatLayer from "@/components/test/AntiCheatLayer";
