@@ -51,22 +51,8 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (
-    !user &&
-    !path.startsWith('/login') &&
-    !path.startsWith('/test/') &&
-    !path.startsWith('/api/test/') &&
-    path !== '/api/upload' &&
-    path !== '/' &&
-    !path.startsWith('/Verbal-Assessment-Videos/') &&
-    !path.startsWith('/Written-Assessment-Videos/') &&
-    !/\.(svg|png|jpg|jpeg|gif|webp|mp4|webm)$/i.test(path)
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
+  // Route authorization should be handled by dedicated route guards/proxy logic.
+  // Do not redirect here, otherwise static candidate assets can be intercepted.
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
   // creating a new response object with NextResponse.next() make sure to:
