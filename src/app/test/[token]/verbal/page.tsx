@@ -7,22 +7,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Mic, Play, ArrowRight, Loader2, Volume2 } from "lucide-react";
 
-// Video sequences based on file structure
+// Video sequences based on file structure - served via API route
 const VERBAL_QUESTIONS = [
   {
     id: 1,
-    preparationVideo: "/Verbal-Assessment-Videos/Verbal-Assessment-Video-8-Question-1-Preparation.mp4",
-    questionVideo: "/Verbal-Assessment-Videos/Verbal-Assessment-Video-9-Question-1.mp4",
+    preparationVideo: "/api/videos/Verbal-Assessment-Videos/Verbal-Assessment-Video-8-Question-1-Preparation.mp4",
+    questionVideo: "/api/videos/Verbal-Assessment-Videos/Verbal-Assessment-Video-9-Question-1.mp4",
   },
   {
     id: 2,
-    preparationVideo: "/Verbal-Assessment-Videos/Verbal-Assessment-Video-10-Question-2-Preparation.mp4",
-    questionVideo: "/Verbal-Assessment-Videos/Verbal-Assessment-Video-11-Question-2.mp4",
+    preparationVideo: "/api/videos/Verbal-Assessment-Videos/Verbal-Assessment-Video-10-Question-2-Preparation.mp4",
+    questionVideo: "/api/videos/Verbal-Assessment-Videos/Verbal-Assessment-Video-11-Question-2.mp4",
   },
   {
     id: 3,
-    preparationVideo: "/Verbal-Assessment-Videos/Verbal-Assessment-Video-14-Question-3-Preparation.mp4",
-    questionVideo: "/Verbal-Assessment-Videos/Verbal-Assessment-Video-15-Question-3.mp4",
+    preparationVideo: "/api/videos/Verbal-Assessment-Videos/Verbal-Assessment-Video-14-Question-3-Preparation.mp4",
+    questionVideo: "/api/videos/Verbal-Assessment-Videos/Verbal-Assessment-Video-15-Question-3.mp4",
   },
 ];
 
@@ -267,7 +267,7 @@ export default function VerbalAssessmentPage() {
             {phase === "instruction" && (
                 <div className="aspect-video min-h-[400px] w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
                 <video
-                    src="/Verbal-Assessment-Videos/Verbal-Assessment-Video-7-Start-Instructions.mp4"
+                    src="/api/videos/Verbal-Assessment-Videos/Verbal-Assessment-Video-7-Start-Instructions.mp4"
                     className="w-full h-full object-contain"
                     autoPlay
                     playsInline

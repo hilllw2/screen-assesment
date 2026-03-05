@@ -10,27 +10,27 @@ import { Badge } from "@/components/ui/badge";
 const WRITING_TASKS = [
   {
     id: 1,
-    video: "/Written-Assessment-Videos/Writing-Assessment-Task.mp4",
+    video: "/api/videos/Written-Assessment-Videos/Writing-Assessment-Task.mp4",
     timeLimit: 7 * 60, // 7 minutes in seconds
   },
   {
     id: 2,
-    video: "/Written-Assessment-Videos/Writing-Assessment-Task-2.mp4",
+    video: "/api/videos/Written-Assessment-Videos/Writing-Assessment-Task-2.mp4",
     timeLimit: 7 * 60,
   },
   {
     id: 3,
-    video: "/Written-Assessment-Videos/Writing-Assessment-Task-3.mp4",
+    video: "/api/videos/Written-Assessment-Videos/Writing-Assessment-Task-3.mp4",
     timeLimit: 7 * 60,
   },
   {
     id: 4,
-    video: "/Written-Assessment-Videos/Writing-Assessment-Task-4.mp4",
+    video: "/api/videos/Written-Assessment-Videos/Writing-Assessment-Task-4.mp4",
     timeLimit: 7 * 60,
   },
   {
     id: 5,
-    video: "/Written-Assessment-Videos/Writing-Assessment-Task-5.mp4",
+    video: "/api/videos/Written-Assessment-Videos/Writing-Assessment-Task-5.mp4",
     timeLimit: 7 * 60,
   },
 ];

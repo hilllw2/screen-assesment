@@ -56,7 +56,7 @@ export default function GuidelinesPage() {
                 playsInline
                 onEnded={() => setVideoEnded(true)}
               >
-                <source src="/Verbal-Assessment-Videos/Verbal-Assessment-Overview.mp4" type="video/mp4" />
+                <source src="/api/videos/Verbal-Assessment-Videos/Verbal-Assessment-Overview.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             </div>
