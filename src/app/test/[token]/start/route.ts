@@ -120,11 +120,13 @@ export async function POST(
     const test = (testLink as any).tests;
     if (test.type === "screening") {
       return NextResponse.redirect(
-        new URL(`/test/${token}/guidelines?sid=${submission.id}`, request.url)
+        new URL(`/test/${token}/guidelines?sid=${submission.id}`, request.url),
+        303
       );
     } else {
       return NextResponse.redirect(
-        new URL(`/test/${token}/upwork?sid=${submission.id}`, request.url)
+        new URL(`/test/${token}/upwork?sid=${submission.id}`, request.url),
+        303
       );
     }
   } catch (error) {
