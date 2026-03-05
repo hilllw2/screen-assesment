@@ -12,17 +12,16 @@ export default function GuidelinesPage() {
   const searchParams = useSearchParams();
   const token = params.token as string;
   const submissionId = searchParams.get("sid");
-  
 
-  
   const [videoEnded, setVideoEnded] = useState(false);
   const [loading, setLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  if (!submissionId) {
-    router.push(`/test/${token}`);
-    return null;
-  }
+  useEffect(() => {
+    if (!submissionId) {
+      router.push(`/test/${token}`);
+    }
+  }, [submissionId, router, token]);
 
   const handleBeginAssessment = async () => {
     setLoading(true);
@@ -36,6 +35,10 @@ export default function GuidelinesPage() {
     });
     router.push(`/test/${token}/writing?sid=${submissionId}`);
   };
+
+  if (!submissionId) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -64,8 +67,6 @@ export default function GuidelinesPage() {
                 This video contains important instructions for the assessment. You must watch it completely to continue.
               </p>
             </div>
-
-
 
             <div className="flex justify-center pt-4">
               <Button
