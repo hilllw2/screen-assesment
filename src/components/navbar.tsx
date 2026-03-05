@@ -17,9 +17,18 @@ import { User, LogOut, Settings } from 'lucide-react'
 interface NavbarProps {
   userEmail?: string
   userName?: string
+  roleLabel?: string
+  contextTitle?: string
+  leadingSlot?: React.ReactNode
 }
 
-export function Navbar({ userEmail, userName }: NavbarProps) {
+export function Navbar({
+  userEmail,
+  userName,
+  roleLabel,
+  contextTitle,
+  leadingSlot,
+}: NavbarProps) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -30,22 +39,46 @@ export function Navbar({ userEmail, userName }: NavbarProps) {
   }
 
   return (
-    <nav className="border-b bg-white">
-      <div className="flex h-16 items-center px-4 md:px-6">
-        <div className="flex-1">
-          <h1 className="text-xl font-semibold">Screening Assessment</h1>
+    <nav className="border-b bg-card/80 backdrop-blur-sm">
+      <div className="flex h-16 items-center px-4 md:px-6 gap-3">
+        {leadingSlot}
+        <div className="flex min-w-0 flex-1 items-baseline gap-3">
+          <div className="flex min-w-0 flex-col">
+            <span className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Screening Assessment
+            </span>
+            <div className="flex items-center gap-2">
+              {contextTitle && (
+                <span className="truncate text-sm font-semibold text-foreground">
+                  {contextTitle}
+                </span>
+              )}
+              {roleLabel && (
+                <span className="rounded-full border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {roleLabel}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-              <User className="h-5 w-5" />
+            <Button
+              variant="ghost"
+              className="relative h-9 w-9 rounded-full border border-border"
+            >
+              <User className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{userName || 'User'}</p>
-                <p className="text-xs leading-none text-gray-500">{userEmail}</p>
+                <p className="text-sm font-medium leading-none">
+                  {userName || 'User'}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {userEmail}
+                </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -56,7 +89,10 @@ export function Navbar({ userEmail, userName }: NavbarProps) {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="cursor-pointer text-red-600 focus:text-red-700"
+            >
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>

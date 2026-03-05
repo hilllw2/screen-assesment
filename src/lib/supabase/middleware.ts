@@ -2,6 +2,22 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
+  const path = request.nextUrl.pathname
+
+  // Skip auth/session work for candidate flow and public assets.
+  if (
+    path === '/' ||
+    path.startsWith('/login') ||
+    path.startsWith('/test/') ||
+    path.startsWith('/api/test/') ||
+    path === '/api/upload' ||
+    path.startsWith('/Verbal-Assessment-Videos/') ||
+    path.startsWith('/Written-Assessment-Videos/') ||
+    /\.(svg|png|jpg|jpeg|gif|webp|mp4|webm)$/i.test(path)
+  ) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -35,22 +51,16 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Allow paths that candidates use without logging in (test pages, test APIs, upload, video assets)
-  const path = request.nextUrl.pathname
-  const isAssessmentVideo =
-    path.startsWith('/Verbal-Assessment-Videos/') ||
-    path.startsWith('/Written-Assessment-Videos/')
-  const isTestApi = path.startsWith('/api/test/')
-  const isUploadApi = path === '/api/upload'
-
   if (
     !user &&
     !path.startsWith('/login') &&
     !path.startsWith('/test/') &&
-    !isTestApi &&
-    !isUploadApi &&
+    !path.startsWith('/api/test/') &&
+    path !== '/api/upload' &&
     path !== '/' &&
-    !isAssessmentVideo
+    !path.startsWith('/Verbal-Assessment-Videos/') &&
+    !path.startsWith('/Written-Assessment-Videos/') &&
+    !/\.(svg|png|jpg|jpeg|gif|webp|mp4|webm)$/i.test(path)
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()

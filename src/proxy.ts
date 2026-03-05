@@ -3,6 +3,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 export async function proxy(request: NextRequest) {
+  const path = request.nextUrl.pathname
+
+  // Candidate/public paths should never be gated by auth checks.
+  const isPublicAsset =
+    path.startsWith('/_next/static') ||
+    path.startsWith('/_next/image') ||
+    path === '/favicon.ico' ||
+    path.startsWith('/Verbal-Assessment-Videos/') ||
+    path.startsWith('/Written-Assessment-Videos/') ||
+    /\.(svg|png|jpg|jpeg|gif|webp|mp4|webm)$/i.test(path)
+  const isCandidatePath =
+    path === '/' ||
+    path.startsWith('/test/') ||
+    path.startsWith('/api/test/') ||
+    path === '/api/upload'
+
+  if (isPublicAsset || isCandidatePath) {
+    return NextResponse.next()
+  }
+
   // Update session
   const response = await updateSession(request)
   
@@ -27,7 +47,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // If user is logged in and on root, redirect to appropriate dashboard
-  if (user && request.nextUrl.pathname === '/') {
+  if (user && path === '/') {
     const { data: userData } = await supabase
       .from('users')
       .select('role')
@@ -42,7 +62,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Protect admin routes
-  if (request.nextUrl.pathname.startsWith('/admin')) {
+  if (path.startsWith('/admin')) {
     if (!user) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
@@ -63,7 +83,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Protect recruiter routes
-  if (request.nextUrl.pathname.startsWith('/recruiter')) {
+  if (path.startsWith('/recruiter')) {
     if (!user) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'

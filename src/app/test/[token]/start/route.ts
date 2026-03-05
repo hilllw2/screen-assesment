@@ -35,11 +35,15 @@ export async function POST(
     }
 
     // Create or find candidate
-    const { data: existingCandidate } = await supabase
+    const { data: existingCandidate, error: existingCandidateError } = await supabase
       .from("candidates")
       .select("id")
       .eq("email", email)
-      .single();
+      .maybeSingle();
+
+    if (existingCandidateError) {
+      console.error("Error checking existing candidate:", existingCandidateError);
+    }
 
     let candidateId;
     if (existingCandidate) {
@@ -57,14 +61,25 @@ export async function POST(
         .single();
       
       if (candidateError || !newCandidate) {
-        console.error("Error creating candidate:", candidateError);
-        return NextResponse.json(
-          { error: "Failed to create candidate" },
-          { status: 500 }
-        );
+        // Handle race conditions where another request inserts same email first.
+        const { data: fallbackCandidate } = await supabase
+          .from("candidates")
+          .select("id")
+          .eq("email", email)
+          .maybeSingle();
+
+        if (!fallbackCandidate) {
+          console.error("Error creating candidate:", candidateError);
+          return NextResponse.json(
+            { error: "Failed to create candidate" },
+            { status: 500 }
+          );
+        }
+
+        candidateId = fallbackCandidate.id;
+      } else {
+        candidateId = newCandidate.id;
       }
-      
-      candidateId = newCandidate.id;
     }
 
     // Create submission
