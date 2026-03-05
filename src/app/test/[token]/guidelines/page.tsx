@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { VIDEO_URLS } from "@/config/video-urls";
 
 
 export default function GuidelinesPage() {
@@ -56,7 +57,7 @@ export default function GuidelinesPage() {
                 playsInline
                 onEnded={() => setVideoEnded(true)}
               >
-                <source src="/api/videos/Verbal-Assessment-Videos/Verbal-Assessment-Overview.mp4" type="video/mp4" />
+                <source src={VIDEO_URLS.verbalOverview} type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             </div>

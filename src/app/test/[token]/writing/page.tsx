@@ -6,34 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { VIDEO_URLS } from "@/config/video-urls";
 
-const WRITING_TASKS = [
-  {
-    id: 1,
-    video: "/api/videos/Written-Assessment-Videos/Writing-Assessment-Task.mp4",
-    timeLimit: 7 * 60, // 7 minutes in seconds
-  },
-  {
-    id: 2,
-    video: "/api/videos/Written-Assessment-Videos/Writing-Assessment-Task-2.mp4",
-    timeLimit: 7 * 60,
-  },
-  {
-    id: 3,
-    video: "/api/videos/Written-Assessment-Videos/Writing-Assessment-Task-3.mp4",
-    timeLimit: 7 * 60,
-  },
-  {
-    id: 4,
-    video: "/api/videos/Written-Assessment-Videos/Writing-Assessment-Task-4.mp4",
-    timeLimit: 7 * 60,
-  },
-  {
-    id: 5,
-    video: "/api/videos/Written-Assessment-Videos/Writing-Assessment-Task-5.mp4",
-    timeLimit: 7 * 60,
-  },
-];
+const WRITING_TASKS = VIDEO_URLS.writingTasks.map((video, index) => ({
+  id: index + 1,
+  video,
+  timeLimit: 7 * 60, // 7 minutes in seconds
+}));
 
 export default function WritingAssessmentPage() {
   const params = useParams();
