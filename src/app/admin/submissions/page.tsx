@@ -297,6 +297,7 @@ export default function AdminSubmissionsPage() {
         <div>
           <h1 className="text-3xl font-bold">All Submissions</h1>
           <p className="text-gray-500 mt-1">View and manage submissions across all recruiters</p>
+          <div className="text-xs text-gray-400 mt-1">v2.0 - Updated with filters</div>
         </div>
         <div className="flex gap-2">
           <Button
