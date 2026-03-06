@@ -60,6 +60,25 @@ type Submission = {
   } | null;
 };
 
+// Helper function to normalize intelligence/personality scores to out of 5
+// Intelligence: 20 questions, so divide by 4 to get out of 5
+// Personality: 20 questions, so divide by 4 to get out of 5
+const normalizeScore = (score: number, maxScore: number): number => {
+  return Math.round((score / maxScore) * 5 * 10) / 10; // Round to 1 decimal
+};
+
+// Calculate total score out of 20
+const calculateTotalScore = (scores: Submission['scores']): number => {
+  if (!scores) return 0;
+  
+  const intelligence = normalizeScore(scores.intelligence_score || 0, 20); // out of 5
+  const personality = normalizeScore(scores.personality_score || 0, 20); // out of 5
+  const audio = scores.audio_score_by_ai || scores.audio_score_by_human || 0; // already out of 5
+  const writing = scores.written_test_score_by_ai || scores.written_test_score_by_human || 0; // already out of 5
+  
+  return Math.round((intelligence + personality + audio + writing) * 10) / 10; // Round to 1 decimal
+};
+
 export default function AdminSubmissionsPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,13 +101,14 @@ export default function AdminSubmissionsPage() {
       'Disqualified',
       'Disqualification Reason',
       'Current Phase',
-      'Intelligence Score',
-      'Personality Score',
-      'AI Audio Score',
-      'AI Writing Score',
-      'Human Audio Score',
-      'Human Writing Score',
-      'Total Score',
+      'Intelligence Score (out of 5)',
+      'Intelligence Raw Score (out of 20)',
+      'Personality Score (out of 5)',
+      'Personality Raw Score (out of 20)',
+      'Verbal Score (out of 5)',
+      'Writing Score (out of 5)',
+      'Total Score (out of 20)',
+      'Overall Percentage',
       'Audio Recording URL',
       'Writing Response 1',
       'Writing Response 2',
@@ -100,33 +120,43 @@ export default function AdminSubmissionsPage() {
       'Test Link Token'
     ];
 
-    const rows = data.map((s) => [
-      s.id,
-      s.candidate?.name || '',
-      s.candidate?.email || '',
-      s.test?.title || '',
-      s.test?.type || '',
-      s.status,
-      s.disqualified ? 'Yes' : 'No',
-      s.disqualification_reason || '',
-      s.current_phase || '',
-      s.scores?.intelligence_score?.toString() || '0',
-      s.scores?.personality_score?.toString() || '0',
-      s.scores?.audio_score_by_ai?.toString() || '',
-      s.scores?.written_test_score_by_ai?.toString() || '',
-      s.scores?.audio_score_by_human?.toString() || '',
-      s.scores?.written_test_score_by_human?.toString() || '',
-      getTotalScore(s.scores),
-      s.audio_recording_url || '',
-      s.writing_part_1_text || '',
-      s.writing_part_2_text || '',
-      new Date(s.started_at).toISOString(),
-      s.submitted_at ? new Date(s.submitted_at).toISOString() : '',
-      s.disqualified_at ? new Date(s.disqualified_at).toISOString() : '',
-      s.ai_scored ? 'Yes' : 'No',
-      s.exported ? 'Yes' : 'No',
-      s.test_link?.token || ''
-    ]);
+    const rows = data.map((s) => {
+      const intelligenceNormalized = normalizeScore(s.scores?.intelligence_score || 0, 20);
+      const personalityNormalized = normalizeScore(s.scores?.personality_score || 0, 20);
+      const verbalScore = s.scores?.audio_score_by_ai || s.scores?.audio_score_by_human || 0;
+      const writingScore = s.scores?.written_test_score_by_ai || s.scores?.written_test_score_by_human || 0;
+      const total = calculateTotalScore(s.scores);
+      const percentage = ((total / 20) * 100).toFixed(1);
+      
+      return [
+        s.id,
+        s.candidate?.name || '',
+        s.candidate?.email || '',
+        s.test?.title || '',
+        s.test?.type || '',
+        s.status,
+        s.disqualified ? 'Yes' : 'No',
+        s.disqualification_reason || '',
+        s.current_phase || '',
+        intelligenceNormalized.toFixed(1),
+        s.scores?.intelligence_score?.toString() || '0',
+        personalityNormalized.toFixed(1),
+        s.scores?.personality_score?.toString() || '0',
+        verbalScore.toString(),
+        writingScore.toString(),
+        total.toFixed(1),
+        percentage + '%',
+        s.audio_recording_url || '',
+        s.writing_part_1_text || '',
+        s.writing_part_2_text || '',
+        new Date(s.started_at).toISOString(),
+        s.submitted_at ? new Date(s.submitted_at).toISOString() : '',
+        s.disqualified_at ? new Date(s.disqualified_at).toISOString() : '',
+        s.ai_scored ? 'Yes' : 'No',
+        s.exported ? 'Yes' : 'No',
+        s.test_link?.token || ''
+      ];
+    });
 
     const escape = (str: string) => `"${str.replace(/"/g, '""')}"`;
     const csv = [header.join(','), ...rows.map((r) => r.map(escape).join(','))].join('\n');
@@ -271,10 +301,7 @@ export default function AdminSubmissionsPage() {
 
   const getTotalScore = (scores: Submission['scores']) => {
     if (!scores) return '-';
-    const total = 
-      (scores.intelligence_score || 0) + 
-      (scores.personality_score || 0);
-    return total.toFixed(0);
+    return calculateTotalScore(scores);
   };
 
   if (loading) {
@@ -384,7 +411,12 @@ export default function AdminSubmissionsPage() {
                     </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(submission)}</TableCell>
-                  <TableCell>{getTotalScore(submission.scores)}</TableCell>
+                  <TableCell>
+                    <div className="font-medium">
+                      {getTotalScore(submission.scores)}
+                      <span className="text-gray-500 text-sm"> / 20</span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="text-sm">
                       {new Date(submission.started_at).toLocaleDateString()}

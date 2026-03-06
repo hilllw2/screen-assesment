@@ -78,6 +78,23 @@ type Submission = {
   }>;
 };
 
+// Helper function to normalize intelligence/personality scores to out of 5
+const normalizeScore = (score: number, maxScore: number): number => {
+  return Math.round((score / maxScore) * 5 * 10) / 10; // Round to 1 decimal
+};
+
+// Calculate total score out of 20
+const calculateTotalScore = (scores: Submission['scores']): number => {
+  if (!scores) return 0;
+  
+  const intelligence = normalizeScore(scores.intelligence_score || 0, 20); // out of 5
+  const personality = normalizeScore(scores.personality_score || 0, 20); // out of 5
+  const audio = scores.audio_score_by_ai || scores.audio_score_by_human || 0; // already out of 5
+  const writing = scores.written_test_score_by_ai || scores.written_test_score_by_human || 0; // already out of 5
+  
+  return Math.round((intelligence + personality + audio + writing) * 10) / 10; // Round to 1 decimal
+};
+
 export default function SubmissionDetailPage({
   params,
 }: {
@@ -366,32 +383,65 @@ export default function SubmissionDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Scores</CardTitle>
+          <CardTitle>Assessment Scores</CardTitle>
+          <p className="text-sm text-gray-500 mt-1">All scores are out of 5. Total score is out of 20.</p>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="p-4 bg-blue-50 rounded-lg">
-              <div className="text-sm text-blue-600">Intelligence</div>
+              <div className="text-sm text-blue-600 mb-1">Intelligence</div>
               <div className="text-2xl font-bold text-blue-900">
-                {submission.scores?.intelligence_score || 0}
+                {normalizeScore(submission.scores?.intelligence_score || 0, 20).toFixed(1)}
+                <span className="text-sm text-blue-600 font-normal"> / 5</span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                ({submission.scores?.intelligence_score || 0} / 20 questions)
               </div>
             </div>
             <div className="p-4 bg-purple-50 rounded-lg">
-              <div className="text-sm text-purple-600">Personality</div>
+              <div className="text-sm text-purple-600 mb-1">Personality</div>
               <div className="text-2xl font-bold text-purple-900">
-                {submission.scores?.personality_score || 0}
+                {normalizeScore(submission.scores?.personality_score || 0, 20).toFixed(1)}
+                <span className="text-sm text-purple-600 font-normal"> / 5</span>
               </div>
-            </div>
-            <div className="p-4 bg-green-50 rounded-lg">
-              <div className="text-sm text-green-600">Audio (AI)</div>
-              <div className="text-2xl font-bold text-green-900">
-                {submission.scores?.audio_score_by_ai || '-'}
+              <div className="text-xs text-gray-500 mt-1">
+                ({submission.scores?.personality_score || 0} / 20 questions)
               </div>
             </div>
             <div className="p-4 bg-orange-50 rounded-lg">
-              <div className="text-sm text-orange-600">Writing (AI)</div>
+              <div className="text-sm text-orange-600 mb-1">Writing</div>
               <div className="text-2xl font-bold text-orange-900">
-                {submission.scores?.written_test_score_by_ai || '-'}
+                {submission.scores?.written_test_score_by_ai || submission.scores?.written_test_score_by_human || '-'}
+                {(submission.scores?.written_test_score_by_ai || submission.scores?.written_test_score_by_human) && 
+                  <span className="text-sm text-orange-600 font-normal"> / 5</span>
+                }
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {submission.scores?.written_test_score_by_ai ? 'AI Scored' : 
+                 submission.scores?.written_test_score_by_human ? 'Human Scored' : 'Not scored'}
+              </div>
+            </div>
+            <div className="p-4 bg-green-50 rounded-lg">
+              <div className="text-sm text-green-600 mb-1">Verbal</div>
+              <div className="text-2xl font-bold text-green-900">
+                {submission.scores?.audio_score_by_ai || submission.scores?.audio_score_by_human || '-'}
+                {(submission.scores?.audio_score_by_ai || submission.scores?.audio_score_by_human) && 
+                  <span className="text-sm text-green-600 font-normal"> / 5</span>
+                }
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {submission.scores?.audio_score_by_ai ? 'AI Scored' : 
+                 submission.scores?.audio_score_by_human ? 'Human Scored' : 'Not scored'}
+              </div>
+            </div>
+            <div className="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg border-2 border-indigo-200">
+              <div className="text-sm text-indigo-600 mb-1 font-semibold">Total Score</div>
+              <div className="text-3xl font-bold text-indigo-900">
+                {calculateTotalScore(submission.scores).toFixed(1)}
+                <span className="text-lg text-indigo-600 font-normal"> / 20</span>
+              </div>
+              <div className="text-xs text-gray-600 mt-1 font-medium">
+                {((calculateTotalScore(submission.scores) / 20) * 100).toFixed(0)}% Overall
               </div>
             </div>
           </div>
