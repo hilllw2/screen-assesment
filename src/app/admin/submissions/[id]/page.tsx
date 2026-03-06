@@ -23,6 +23,7 @@ type Submission = {
   writing_part_3_text: string | null;
   writing_part_4_text: string | null;
   writing_part_5_text: string | null;
+  audio_recording_url: string | null;
   verbal_question_1_url: string | null;
   verbal_question_2_url: string | null;
   verbal_question_3_url: string | null;
@@ -101,7 +102,25 @@ export default function SubmissionDetailPage({
     
     const urls: { [key: string]: string } = {};
     
-    // Load presigned URLs for verbal questions
+    // Load presigned URL for combined audio recording
+    if (submission.audio_recording_url) {
+      try {
+        const response = await fetch('/api/presigned-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ s3Url: submission.audio_recording_url })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          urls['combined_audio'] = data.presignedUrl;
+        }
+      } catch (error) {
+        console.error('Failed to get presigned URL for combined audio:', error);
+      }
+    }
+    
+    // Load presigned URLs for individual verbal questions (if they exist)
     for (let i = 1; i <= 3; i++) {
       const s3Url = submission[`verbal_question_${i}_url` as keyof Submission] as string | null;
       if (s3Url) {
@@ -485,6 +504,40 @@ export default function SubmissionDetailPage({
         </TabsContent>
 
         <TabsContent value="verbal" className="space-y-4">
+          {/* Show combined audio recording if available */}
+          {submission.audio_recording_url && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Verbal Assessment Recording (All 3 Questions)</CardTitle>
+                <p className="text-sm text-gray-500 mt-1">
+                  This is a combined recording of all 3 verbal questions answered by the candidate.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {presignedUrls['combined_audio'] ? (
+                  <div className="space-y-2">
+                    <audio controls className="w-full">
+                      <source src={presignedUrls['combined_audio']} type="audio/webm" />
+                      Your browser does not support the audio element.
+                    </audio>
+                    <div className="text-xs text-gray-500">
+                      <a 
+                        href={presignedUrls['combined_audio']} 
+                        download="verbal-recording.webm"
+                        className="text-blue-600 hover:underline"
+                      >
+                        Download Recording
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">Loading audio...</div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Show individual question recordings if available */}
           {[1, 2, 3].map((questionNum) => {
             const url = submission[`verbal_question_${questionNum}_url` as keyof Submission] as string | null;
             const presignedUrl = presignedUrls[`verbal_${questionNum}`];
@@ -509,6 +562,21 @@ export default function SubmissionDetailPage({
               </Card>
             );
           })}
+          
+          {/* Show message if no audio recordings found */}
+          {!submission.audio_recording_url && 
+           !submission.verbal_question_1_url && 
+           !submission.verbal_question_2_url && 
+           !submission.verbal_question_3_url && (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-gray-500">
+                  No verbal assessment recordings found for this submission.
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           {submission.notes?.audio_notes_by_ai && (
             <Card className="border-blue-200 bg-blue-50">
               <CardHeader>
