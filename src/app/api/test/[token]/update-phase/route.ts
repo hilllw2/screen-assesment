@@ -19,13 +19,21 @@ export async function POST(
     }
 
     // Update submission phase
+    const updateData: any = {
+      current_phase: phase,
+      phase_started_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // If phase is "finish", mark the submission as "submitted"
+    if (phase === "finish") {
+      updateData.status = "submitted";
+      updateData.submitted_at = new Date().toISOString();
+    }
+
     const { error } = await supabase
       .from("submissions")
-      .update({
-        current_phase: phase,
-        phase_started_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", submissionId);
 
     if (error) {
