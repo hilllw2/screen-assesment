@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { useAntiCheat } from "@/hooks/useAntiCheat";
 
 interface Question {
   id: string;
@@ -31,6 +32,13 @@ export default function IntelligenceTestPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Enable anti-cheat monitoring
+  useAntiCheat({ 
+    submissionId: submissionId || '', 
+    token,
+    enabled: !!submissionId 
+  });
 
   useEffect(() => {
     if (!submissionId) {

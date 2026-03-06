@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { VIDEO_URLS } from "@/config/video-urls";
+import { useAntiCheat } from "@/hooks/useAntiCheat";
 
 const WRITING_TASKS = VIDEO_URLS.writingTasks.map((video, index) => ({
   id: index + 1,
@@ -30,6 +31,13 @@ export default function WritingAssessmentPage() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Enable anti-cheat monitoring
+  useAntiCheat({ 
+    submissionId: submissionId || '', 
+    token,
+    enabled: !!submissionId 
+  });
 
   useEffect(() => {
     if (!submissionId) {

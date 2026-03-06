@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Mic, Play, ArrowRight, Loader2, Volume2 } from "lucide-react";
 import { VIDEO_URLS } from "@/config/video-urls";
+import { useAntiCheat } from "@/hooks/useAntiCheat";
 
 // Video sequences based on file structure - now using S3 URLs
 const VERBAL_QUESTIONS = [
@@ -47,6 +48,13 @@ export default function VerbalAssessmentPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const uploadedUrlsRef = useRef<string[]>([]);
+
+  // Enable anti-cheat monitoring
+  useAntiCheat({ 
+    submissionId: submissionId || '', 
+    token,
+    enabled: !!submissionId 
+  });
 
   useEffect(() => {
     if (!submissionId) {
