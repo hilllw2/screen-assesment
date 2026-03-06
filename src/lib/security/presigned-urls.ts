@@ -10,9 +10,23 @@ export async function generatePresignedUrl(
   key: string,
   expiresIn: number = 3600 // Default: 1 hour
 ): Promise<string> {
+  console.log('🔐 generatePresignedUrl called with:', { key, expiresIn });
+  
   const config = getS3Config();
   
+  console.log('⚙️ S3 Config:', {
+    region: config.region,
+    bucketName: config.bucketName,
+    hasAccessKey: !!config.accessKeyId,
+    hasSecretKey: !!config.secretAccessKey,
+  });
+  
   if (!config.accessKeyId || !config.secretAccessKey || !config.bucketName) {
+    console.error('❌ Missing AWS credentials:', {
+      hasAccessKeyId: !!config.accessKeyId,
+      hasSecretAccessKey: !!config.secretAccessKey,
+      hasBucketName: !!config.bucketName,
+    });
     throw new Error("AWS S3 credentials not configured");
   }
 
@@ -29,14 +43,25 @@ export async function generatePresignedUrl(
     Key: key,
   });
 
+  console.log('📤 Executing GetObjectCommand:', {
+    Bucket: config.bucketName,
+    Key: key,
+  });
+
   try {
     const presignedUrl = await getSignedUrl(s3Client, command, {
       expiresIn,
     });
     
+    console.log('✅ Successfully generated presigned URL');
     return presignedUrl;
   } catch (error: any) {
-    console.error("Error generating presigned URL:", error);
+    console.error('❌ Error in getSignedUrl:', {
+      message: error?.message,
+      code: error?.code,
+      name: error?.name,
+      stack: error?.stack,
+    });
     throw new Error(`Failed to generate presigned URL: ${error.message}`);
   }
 }
@@ -47,22 +72,34 @@ export async function generatePresignedUrl(
  */
 export function extractS3Key(s3Url: string): string | null {
   try {
+    console.log('🔍 Extracting S3 key from URL:', s3Url);
     const url = new URL(s3Url);
+    console.log('📍 URL parsed:', {
+      hostname: url.hostname,
+      pathname: url.pathname,
+    });
     
     // Path-style: https://s3.region.amazonaws.com/bucket/key
     if (url.hostname.startsWith('s3.')) {
       const pathParts = url.pathname.split('/').filter(Boolean);
+      console.log('📦 Path-style URL detected, pathParts:', pathParts);
       pathParts.shift(); // Remove bucket name
-      return pathParts.join('/');
+      const key = pathParts.join('/');
+      console.log('✅ Extracted key (path-style):', key);
+      return key;
     }
     
     // Virtual-hosted-style: https://bucket.s3.region.amazonaws.com/key
     if (url.hostname.includes('.s3.')) {
-      return url.pathname.substring(1); // Remove leading slash
+      const key = url.pathname.substring(1); // Remove leading slash
+      console.log('✅ Extracted key (virtual-hosted):', key);
+      return key;
     }
     
+    console.error('❌ Unknown S3 URL format');
     return null;
-  } catch {
+  } catch (error: any) {
+    console.error('❌ Error parsing S3 URL:', error?.message);
     return null;
   }
 }

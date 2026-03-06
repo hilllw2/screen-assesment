@@ -88,8 +88,16 @@ export default function VerbalAssessmentPage() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       
-      // Create MediaRecorder with timeslice so data is available periodically
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      // Try to use audio/webm;codecs=opus first (better compatibility), fallback to audio/webm
+      let mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm';
+        console.log('⚠️ Using audio/webm (opus not supported)');
+      } else {
+        console.log('✅ Using audio/webm;codecs=opus');
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {

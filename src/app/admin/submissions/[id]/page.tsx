@@ -525,41 +525,44 @@ export default function SubmissionDetailPage({
               </CardHeader>
               <CardContent>
                 {presignedUrls['combined_audio'] ? (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h4 className="text-sm font-semibold text-blue-900 mb-2">Using Presigned URL (Secure)</h4>
-                      <audio controls className="w-full" controlsList="nodownload">
-                        <source src={presignedUrls['combined_audio']} type="audio/webm" />
-                        Your browser does not support the audio element.
-                      </audio>
-                      <div className="text-xs text-gray-500 mt-2">
+                  <div className="space-y-2">
+                    <audio controls className="w-full" preload="metadata">
+                      <source src={presignedUrls['combined_audio']} type="audio/webm" />
+                      <source src={presignedUrls['combined_audio']} type="audio/webm;codecs=opus" />
+                      <source src={presignedUrls['combined_audio']} type="audio/ogg" />
+                      Your browser does not support the audio element.
+                    </audio>
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <div>
                         <a 
                           href={presignedUrls['combined_audio']} 
                           download="verbal-recording.webm"
                           className="text-blue-600 hover:underline"
+                          target="_blank"
+                          rel="noopener noreferrer"
                         >
-                          Download Recording (WebM)
+                          Download Recording
+                        </a>
+                        {' · '}
+                        <a 
+                          href={presignedUrls['combined_audio']}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          Open in New Tab
                         </a>
                       </div>
-                    </div>
-                    
-                    {/* Direct S3 URL for debugging */}
-                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <h4 className="text-sm font-semibold text-yellow-900 mb-2">Debug: Try Direct S3 URL</h4>
-                      <audio controls className="w-full">
-                        <source src={submission.audio_recording_url} type="audio/webm" />
-                        Your browser does not support the audio element.
-                      </audio>
-                      <div className="text-xs text-gray-600 mt-2 break-all">
-                        <strong>S3 URL:</strong> {submission.audio_recording_url}
+                      <div className="text-xs text-gray-400">
+                        Original URL: {submission.audio_recording_url}
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <div className="text-sm text-gray-500">Loading presigned URL...</div>
-                    <div className="text-xs text-gray-400 break-all">
-                      <strong>S3 URL:</strong> {submission.audio_recording_url}
+                    <div className="text-xs text-gray-400">
+                      S3 URL: {submission.audio_recording_url}
                     </div>
                     <div className="text-xs text-red-500 mt-2">
                       If this persists, check browser console for errors.
