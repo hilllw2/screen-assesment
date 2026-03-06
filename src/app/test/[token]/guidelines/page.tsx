@@ -219,42 +219,78 @@ export default function GuidelinesPage() {
 
             {/* Screen Sharing Setup */}
             {videoEnded && (
-              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                <div className="flex items-start gap-3">
-                  <Monitor className="h-6 w-6 text-yellow-700 flex-shrink-0 mt-1" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-yellow-900 mb-2">
-                      Screen Sharing Required
-                    </h3>
-                    <p className="text-sm text-yellow-800 mb-3">
-                      For security and proctoring purposes, you must share your entire screen throughout the assessment. 
-                      Stopping screen sharing or switching tabs will result in automatic disqualification.
+              <>
+                <div className="bg-red-50 p-4 rounded-lg border-2 border-red-300">
+                  <h3 className="font-semibold text-red-900 mb-2 flex items-center gap-2">
+                    🚨 Final Warning - Anti-Cheating Monitoring Active
+                  </h3>
+                  <p className="text-sm text-red-800 mb-3 font-medium">
+                    Once you enable screen sharing and begin, the following actions will result in IMMEDIATE DISQUALIFICATION:
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-red-900">
+                    <div className="bg-white p-2 rounded border border-red-200">
+                      ❌ Switching browser tabs
+                    </div>
+                    <div className="bg-white p-2 rounded border border-red-200">
+                      ❌ Stopping screen sharing
+                    </div>
+                    <div className="bg-white p-2 rounded border border-red-200">
+                      ❌ Opening other applications
+                    </div>
+                    <div className="bg-white p-2 rounded border border-red-200">
+                      ❌ Using developer tools (F12)
+                    </div>
+                    <div className="bg-white p-2 rounded border border-red-200">
+                      ❌ Refreshing the page
+                    </div>
+                    <div className="bg-white p-2 rounded border border-red-200">
+                      ❌ Copy/pasting answers
+                    </div>
+                  </div>
+                  <div className="mt-3 p-2 bg-red-100 rounded border border-red-300">
+                    <p className="text-xs text-red-900 font-bold text-center">
+                      Your entire screen is being recorded. Violations are automatically detected AND manually reviewed.
                     </p>
-                    
-                    {!screenSharingEnabled ? (
-                      <Button 
-                        onClick={setupScreenRecording}
-                        variant="outline"
-                        className="bg-white"
-                      >
-                        <Monitor className="h-4 w-4 mr-2" />
-                        Enable Screen Sharing
-                      </Button>
-                    ) : (
-                      <div className="flex items-center gap-2 text-green-700 font-medium">
-                        <CheckCircle2 className="h-5 w-5" />
-                        Screen sharing enabled
-                      </div>
-                    )}
-
-                    {screenRecordingError && (
-                      <div className="mt-3 text-sm text-red-600 bg-red-50 p-3 rounded border border-red-200">
-                        {screenRecordingError}
-                      </div>
-                    )}
                   </div>
                 </div>
-              </div>
+
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <div className="flex items-start gap-3">
+                    <Monitor className="h-6 w-6 text-yellow-700 flex-shrink-0 mt-1" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-yellow-900 mb-2">
+                        Screen Sharing Required
+                      </h3>
+                      <p className="text-sm text-yellow-800 mb-3">
+                        Click the button below and select "Your Entire Screen" (not a single tab or window).
+                        Ensure all secondary monitors are disconnected before proceeding.
+                      </p>
+                      
+                      {!screenSharingEnabled ? (
+                        <Button 
+                          onClick={setupScreenRecording}
+                          variant="outline"
+                          className="bg-white"
+                        >
+                          <Monitor className="h-4 w-4 mr-2" />
+                          Enable Screen Sharing
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-2 text-green-700 font-medium">
+                          <CheckCircle2 className="h-5 w-5" />
+                          Screen sharing enabled - Recording in progress
+                        </div>
+                      )}
+
+                      {screenRecordingError && (
+                        <div className="mt-3 text-sm text-red-600 bg-red-50 p-3 rounded border border-red-200">
+                          {screenRecordingError}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="flex justify-center pt-4">
