@@ -24,6 +24,7 @@ type Submission = {
   writing_part_4_text: string | null;
   writing_part_5_text: string | null;
   audio_recording_url: string | null;
+  screen_recording_url: string | null;
   verbal_question_1_url: string | null;
   verbal_question_2_url: string | null;
   verbal_question_3_url: string | null;
@@ -127,6 +128,28 @@ export default function SubmissionDetailPage({
       }
     } else {
       console.log('⚠️ No audio_recording_url found in submission');
+    }
+    
+    // Load presigned URL for screen recording
+    if (submission.screen_recording_url) {
+      console.log('🖥️ Loading presigned URL for screen recording:', submission.screen_recording_url);
+      try {
+        const response = await fetch('/api/presigned-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ s3Url: submission.screen_recording_url })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Got presigned URL for screen recording');
+          urls['screen_recording'] = data.presignedUrl;
+        } else {
+          console.error('❌ Failed to get presigned URL for screen recording');
+        }
+      } catch (error) {
+        console.error('❌ Failed to get presigned URL for screen recording:', error);
+      }
     }
     
     // Load presigned URLs for individual verbal questions (if they exist)
@@ -389,6 +412,9 @@ export default function SubmissionDetailPage({
           <TabsTrigger value="verbal">
             Verbal Assessment
           </TabsTrigger>
+          <TabsTrigger value="screen-recording">
+            Screen Recording
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="intelligence" className="space-y-4">
@@ -621,6 +647,72 @@ export default function SubmissionDetailPage({
               <CardContent>
                 <div className="whitespace-pre-wrap">
                   {submission.notes.audio_notes_by_ai}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="screen-recording" className="space-y-4">
+          {submission.screen_recording_url ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Screen Recording</CardTitle>
+                <p className="text-sm text-gray-500 mt-1">
+                  Full screen recording of the candidate's assessment session for proctoring purposes.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {presignedUrls['screen_recording'] ? (
+                  <div className="space-y-2">
+                    <video controls className="w-full max-h-[600px] bg-black rounded">
+                      <source src={presignedUrls['screen_recording']} type="video/webm" />
+                      Your browser does not support the video element.
+                    </video>
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <div>
+                        <a 
+                          href={presignedUrls['screen_recording']} 
+                          download="screen-recording.webm"
+                          className="text-blue-600 hover:underline"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Download Recording
+                        </a>
+                        {' · '}
+                        <a 
+                          href={presignedUrls['screen_recording']}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          Open in New Tab
+                        </a>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Original URL: {submission.screen_recording_url}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-500">Loading presigned URL...</div>
+                    <div className="text-xs text-gray-400">
+                      S3 URL: {submission.screen_recording_url}
+                    </div>
+                    <div className="text-xs text-red-500 mt-2">
+                      If this persists, check browser console for errors.
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-gray-500">
+                  No screen recording found for this submission.
                 </div>
               </CardContent>
             </Card>

@@ -168,6 +168,9 @@ export default function VerbalAssessmentPage() {
     // Combine all 3 recordings into one audio file and upload
     await uploadCombinedRecording();
 
+    // Stop screen recording if it's active
+    await stopScreenRecording();
+
     // Complete phase
     await fetch(`/api/test/${token}/update-phase`, {
       method: "POST",
@@ -179,6 +182,34 @@ export default function VerbalAssessmentPage() {
     });
 
     router.push(`/test/${token}/finish?sid=${submissionId}`);
+  };
+
+  const stopScreenRecording = async () => {
+    try {
+      // Get screen recorder from window
+      const screenRecorder = (window as any).__screenRecorder;
+      const screenStream = (window as any).__screenStream;
+
+      if (screenRecorder && screenRecorder.state !== 'inactive') {
+        console.log('🛑 Stopping screen recording...');
+        
+        // Stop recording (this will trigger the upload via onstop handler)
+        screenRecorder.stop();
+        
+        // Wait a bit for the upload to complete
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
+      // Stop all tracks in the stream
+      if (screenStream) {
+        screenStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+      }
+
+      console.log('✅ Screen recording stopped');
+    } catch (error) {
+      console.error('❌ Error stopping screen recording:', error);
+      // Don't fail the whole submission if screen recording fails to stop
+    }
   };
 
   const uploadCombinedRecording = async () => {
