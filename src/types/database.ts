@@ -1,4 +1,5 @@
 // Database types for questions
+
 export type QuestionCategory = 'intelligence' | 'personality'
 export type Difficulty = 'easy' | 'medium' | 'hard'
 export type CorrectOption = 'a' | 'b' | 'c' | 'd'
@@ -20,6 +21,7 @@ export interface Question {
   is_active: boolean
   created_at: string
 }
+
 
 export interface CreateQuestionInput {
   category: QuestionCategory
