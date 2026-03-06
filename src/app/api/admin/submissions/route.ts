@@ -92,7 +92,7 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json();
-  const { submissionId, action } = body;
+  const { submissionId, action, status } = body;
 
   if (action === 'export') {
     const { error } = await supabase
@@ -101,6 +101,26 @@ export async function PATCH(request: Request) {
         exported: true,
         exported_at: new Date().toISOString(),
         exported_by: user.id
+      })
+      .eq('id', submissionId);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'updateStatus') {
+    if (!status || !['passed', 'failed'].includes(status)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from('submissions')
+      .update({
+        status,
+        updated_at: new Date().toISOString()
       })
       .eq('id', submissionId);
 

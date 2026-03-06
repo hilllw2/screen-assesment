@@ -19,7 +19,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Download, Search, Filter, Eye, FileText } from 'lucide-react';
+import { Download, Search, Filter, Eye, FileText, CheckCircle, XCircle, ThumbsUp, ThumbsDown } from 'lucide-react';
 import Link from 'next/link';
 
 type Submission = {
@@ -65,8 +65,10 @@ export default function AdminSubmissionsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [exportFilter, setExportFilter] = useState('all');
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   // convert an array of submissions to CSV string with detailed data
   const submissionsToCSV = (data: Submission[]) => {
@@ -206,6 +208,32 @@ export default function AdminSubmissionsPage() {
     }
   };
 
+  const handleUpdateStatus = async (submissionId: string, newStatus: 'passed' | 'failed') => {
+    setUpdatingStatus(submissionId);
+    try {
+      const response = await fetch('/api/admin/submissions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          submissionId, 
+          action: 'updateStatus',
+          status: newStatus 
+        })
+      });
+
+      if (response.ok) {
+        fetchSubmissions();
+      } else {
+        alert('Failed to update submission status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update submission status');
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
   const filteredSubmissions = submissions.filter(submission => {
     const matchesSearch = 
       submission.candidate?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -214,7 +242,12 @@ export default function AdminSubmissionsPage() {
     
     const matchesStatus = statusFilter === 'all' || submission.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    const matchesExport = 
+      exportFilter === 'all' ||
+      (exportFilter === 'exported' && submission.exported) ||
+      (exportFilter === 'not_exported' && !submission.exported);
+    
+    return matchesSearch && matchesStatus && matchesExport;
   });
 
   const getStatusBadge = (submission: Submission) => {
@@ -279,8 +312,8 @@ export default function AdminSubmissionsPage() {
       </div>
 
       <div className="bg-white rounded-lg border">
-        <div className="p-4 border-b flex gap-4">
-          <div className="flex-1 relative">
+        <div className="p-4 border-b flex gap-4 flex-wrap">
+          <div className="flex-1 min-w-[200px] relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Search by candidate name, email, or test..."
@@ -299,6 +332,16 @@ export default function AdminSubmissionsPage() {
               <SelectItem value="submitted">Submitted</SelectItem>
               <SelectItem value="passed">Passed</SelectItem>
               <SelectItem value="failed">Failed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={exportFilter} onValueChange={setExportFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by export" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Submissions</SelectItem>
+              <SelectItem value="exported">Exported</SelectItem>
+              <SelectItem value="not_exported">Not Exported</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -368,12 +411,38 @@ export default function AdminSubmissionsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex gap-2 justify-end">
+                    <div className="flex gap-1 justify-end">
+                      {/* Pass/Fail buttons for submitted submissions */}
+                      {submission.status === 'submitted' && !submission.disqualified && (
+                        <>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleUpdateStatus(submission.id, 'passed')}
+                            disabled={updatingStatus === submission.id}
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            title="Mark as Passed"
+                          >
+                            <ThumbsUp className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleUpdateStatus(submission.id, 'failed')}
+                            disabled={updatingStatus === submission.id}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Mark as Failed"
+                          >
+                            <ThumbsDown className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      
                       <Link 
                         href={`/admin/submissions/${submission.id}`}
                         target="_blank"
                       >
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" title="View Details">
                           <Eye className="h-4 w-4" />
                         </Button>
                       </Link>
@@ -382,6 +451,7 @@ export default function AdminSubmissionsPage() {
                         size="sm"
                         onClick={() => handleExport(submission.id)}
                         disabled={exportingId === submission.id || submission.exported}
+                        title={submission.exported ? 'Already Exported' : 'Mark as Exported'}
                       >
                         <Download className="h-4 w-4" />
                       </Button>
