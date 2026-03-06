@@ -104,6 +104,7 @@ export default function SubmissionDetailPage({
     
     // Load presigned URL for combined audio recording
     if (submission.audio_recording_url) {
+      console.log('🔊 Loading presigned URL for audio:', submission.audio_recording_url);
       try {
         const response = await fetch('/api/presigned-url', {
           method: 'POST',
@@ -111,13 +112,21 @@ export default function SubmissionDetailPage({
           body: JSON.stringify({ s3Url: submission.audio_recording_url })
         });
         
+        console.log('📡 Presigned URL response status:', response.status);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('✅ Got presigned URL:', data.presignedUrl?.substring(0, 100) + '...');
           urls['combined_audio'] = data.presignedUrl;
+        } else {
+          const errorData = await response.json();
+          console.error('❌ Failed to get presigned URL:', errorData);
         }
       } catch (error) {
-        console.error('Failed to get presigned URL for combined audio:', error);
+        console.error('❌ Failed to get presigned URL for combined audio:', error);
       }
+    } else {
+      console.log('⚠️ No audio_recording_url found in submission');
     }
     
     // Load presigned URLs for individual verbal questions (if they exist)
@@ -141,6 +150,7 @@ export default function SubmissionDetailPage({
       }
     }
     
+    console.log('🎯 Final presigned URLs:', urls);
     setPresignedUrls(urls);
   };
 
@@ -520,18 +530,31 @@ export default function SubmissionDetailPage({
                       <source src={presignedUrls['combined_audio']} type="audio/webm" />
                       Your browser does not support the audio element.
                     </audio>
-                    <div className="text-xs text-gray-500">
-                      <a 
-                        href={presignedUrls['combined_audio']} 
-                        download="verbal-recording.webm"
-                        className="text-blue-600 hover:underline"
-                      >
-                        Download Recording
-                      </a>
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <div>
+                        <a 
+                          href={presignedUrls['combined_audio']} 
+                          download="verbal-recording.webm"
+                          className="text-blue-600 hover:underline"
+                        >
+                          Download Recording
+                        </a>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Original URL: {submission.audio_recording_url}
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-sm text-gray-500">Loading audio...</div>
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-500">Loading presigned URL...</div>
+                    <div className="text-xs text-gray-400">
+                      S3 URL: {submission.audio_recording_url}
+                    </div>
+                    <div className="text-xs text-red-500 mt-2">
+                      If this persists, check browser console for errors.
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
