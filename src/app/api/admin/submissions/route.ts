@@ -35,6 +35,9 @@ export async function GET() {
       ai_scored,
       exported,
       current_phase,
+      audio_recording_url,
+      writing_part_1_text,
+      writing_part_2_text,
       candidate:candidates (
         id,
         name,

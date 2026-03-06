@@ -33,6 +33,9 @@ type Submission = {
   ai_scored: boolean;
   exported: boolean;
   current_phase: string | null;
+  audio_recording_url: string | null;
+  writing_part_1_text: string | null;
+  writing_part_2_text: string | null;
   candidate: {
     id: string;
     name: string;
@@ -65,32 +68,62 @@ export default function AdminSubmissionsPage() {
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
 
-  // convert an array of submissions to CSV string
+  // convert an array of submissions to CSV string with detailed data
   const submissionsToCSV = (data: Submission[]) => {
     const header = [
+      'Submission ID',
       'Candidate Name',
       'Candidate Email',
       'Test Title',
       'Test Type',
       'Status',
-      'Score',
+      'Disqualified',
+      'Disqualification Reason',
+      'Current Phase',
+      'Intelligence Score',
+      'Personality Score',
+      'AI Audio Score',
+      'AI Writing Score',
+      'Human Audio Score',
+      'Human Writing Score',
+      'Total Score',
+      'Audio Recording URL',
+      'Writing Response 1',
+      'Writing Response 2',
       'Started At',
       'Submitted At',
+      'Disqualified At',
       'AI Scored',
-      'Exported'
+      'Exported',
+      'Test Link Token'
     ];
 
     const rows = data.map((s) => [
+      s.id,
       s.candidate?.name || '',
       s.candidate?.email || '',
       s.test?.title || '',
       s.test?.type || '',
       s.status,
+      s.disqualified ? 'Yes' : 'No',
+      s.disqualification_reason || '',
+      s.current_phase || '',
+      s.scores?.intelligence_score?.toString() || '0',
+      s.scores?.personality_score?.toString() || '0',
+      s.scores?.audio_score_by_ai?.toString() || '',
+      s.scores?.written_test_score_by_ai?.toString() || '',
+      s.scores?.audio_score_by_human?.toString() || '',
+      s.scores?.written_test_score_by_human?.toString() || '',
       getTotalScore(s.scores),
+      s.audio_recording_url || '',
+      s.writing_part_1_text || '',
+      s.writing_part_2_text || '',
       new Date(s.started_at).toISOString(),
       s.submitted_at ? new Date(s.submitted_at).toISOString() : '',
+      s.disqualified_at ? new Date(s.disqualified_at).toISOString() : '',
       s.ai_scored ? 'Yes' : 'No',
-      s.exported ? 'Yes' : 'No'
+      s.exported ? 'Yes' : 'No',
+      s.test_link?.token || ''
     ]);
 
     const escape = (str: string) => `"${str.replace(/"/g, '""')}"`;
