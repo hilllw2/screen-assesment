@@ -39,34 +39,33 @@ export function useAntiCheat({ submissionId, token, enabled = true }: UseAntiChe
     };
 
     // 1. TAB VISIBILITY / WINDOW FOCUS DETECTION
-    let visibilityTimeout: NodeJS.Timeout | null = null;
-    
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        console.warn('⚠️ Tab became hidden - starting grace period');
-        
-        // Give a 2-second grace period before reporting violation
-        // This prevents false positives from quick alt-tabs or system dialogs
-        visibilityTimeout = setTimeout(() => {
-          if (document.hidden) {
-            console.error('🚨 Tab still hidden after grace period - VIOLATION');
-            reportViolation('tab_switch');
-          }
-        }, 2000);
-      } else {
-        // Tab became visible again - cancel the violation
-        if (visibilityTimeout) {
-          console.log('✅ Tab visible again - canceling violation');
-          clearTimeout(visibilityTimeout);
-          visibilityTimeout = null;
-        }
+        console.error('🚨 Tab became hidden - IMMEDIATE VIOLATION');
+        reportViolation('tab_switch');
       }
     };
 
     const handleBlur = () => {
-      // Don't use blur for violation - too many false positives
-      // Only log for monitoring
-      console.warn('⚠️ Window lost focus (not reporting as violation)');
+      console.error('🚨 Window lost focus - IMMEDIATE VIOLATION');
+      // Immediately report, no delay
+      reportViolation('tab_switch');
+    };
+
+    const handleFocus = () => {
+      // Check if tab was hidden while we had focus
+      if (document.hidden) {
+        console.error('🚨 Tab was hidden - VIOLATION');
+        reportViolation('tab_switch');
+      }
+    };
+
+    // Additional check using Page Visibility API
+    const checkVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        console.error('🚨 Page visibility hidden - VIOLATION');
+        reportViolation('tab_switch');
+      }
     };
 
     // 2. COPY/PASTE DETECTION
@@ -207,12 +206,16 @@ export function useAntiCheat({ submissionId, token, enabled = true }: UseAntiChe
     // Attach event listeners
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
     document.addEventListener('copy', handleCopy);
     document.addEventListener('paste', handlePaste);
     document.addEventListener('cut', handleCut);
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Check visibility periodically (aggressive)
+    const visibilityInterval = setInterval(checkVisibility, 500);
 
     // Check DevTools periodically
     const devToolsInterval = setInterval(detectDevTools, 1000);
@@ -223,26 +226,22 @@ export function useAntiCheat({ submissionId, token, enabled = true }: UseAntiChe
     // Check multiple monitors on mount
     checkMultipleMonitors();
 
-    console.log('✅ Anti-cheat monitoring active');
+    console.log('✅ Anti-cheat monitoring active (AGGRESSIVE MODE)');
 
     // Cleanup
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
       document.removeEventListener('copy', handleCopy);
       document.removeEventListener('paste', handlePaste);
       document.removeEventListener('cut', handleCut);
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      clearInterval(visibilityInterval);
       clearInterval(devToolsInterval);
       clearInterval(screenShareInterval);
-      
-      // Clear visibility timeout if exists
-      if (visibilityTimeout) {
-        clearTimeout(visibilityTimeout);
-      }
-      
       console.log('🛑 Anti-cheat monitoring stopped');
     };
   }, [submissionId, token, enabled, router]);

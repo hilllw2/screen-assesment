@@ -271,16 +271,19 @@ export default function AdminSubmissionsPage() {
     }
 
     setDeletingId(submissionId);
+    
     try {
-      const response = await fetch(`/api/admin/submissions/${submissionId}/delete`, {
+      const response = await fetch(`/api/admin/submissions/${submissionId}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        fetchSubmissions(); // Refresh the list
+        // Remove from local state immediately
+        setSubmissions(prev => prev.filter(s => s.id !== submissionId));
+        alert('Submission deleted successfully');
       } else {
         const data = await response.json();
-        alert(`Failed to delete submission: ${data.error}`);
+        alert(data.error || 'Failed to delete submission');
       }
     } catch (error) {
       console.error('Error deleting submission:', error);
