@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { deleteMultipleFromS3 } from '@/lib/s3';
 
 export async function GET(
   request: Request,
@@ -113,6 +114,42 @@ export async function DELETE(
   console.log(`🗑️ Admin ${user.id} attempting to delete submission ${id}`);
 
   try {
+    // First, fetch the submission to get S3 URLs
+    const { data: submission, error: fetchError } = await supabase
+      .from('submissions')
+      .select('audio_recording_url, screen_recording_url, video_recording_url, verbal_question_1_url, verbal_question_2_url, verbal_question_3_url')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching submission for deletion:', fetchError);
+      return NextResponse.json({ 
+        error: 'Submission not found',
+        details: fetchError.message 
+      }, { status: 404 });
+    }
+
+    // Collect all S3 URLs to delete
+    const s3UrlsToDelete: string[] = [];
+    if (submission.audio_recording_url) s3UrlsToDelete.push(submission.audio_recording_url);
+    if (submission.screen_recording_url) s3UrlsToDelete.push(submission.screen_recording_url);
+    if (submission.video_recording_url) s3UrlsToDelete.push(submission.video_recording_url);
+    if (submission.verbal_question_1_url) s3UrlsToDelete.push(submission.verbal_question_1_url);
+    if (submission.verbal_question_2_url) s3UrlsToDelete.push(submission.verbal_question_2_url);
+    if (submission.verbal_question_3_url) s3UrlsToDelete.push(submission.verbal_question_3_url);
+
+    console.log(`📁 Found ${s3UrlsToDelete.length} S3 file(s) to delete`);
+
+    // Delete S3 files first (don't fail if this doesn't work)
+    if (s3UrlsToDelete.length > 0) {
+      try {
+        await deleteMultipleFromS3(s3UrlsToDelete);
+      } catch (s3Error: any) {
+        console.error('⚠️ Error deleting S3 files (continuing with DB deletion):', s3Error);
+        // Continue with database deletion even if S3 deletion fails
+      }
+    }
+
     // Delete related records first (due to foreign key constraints)
     
     // 1. Delete submission answers

@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getS3Config } from "./env-config";
 
 // Initialize S3 client with configuration from environment variables
@@ -106,4 +106,64 @@ export async function uploadScreenRecordingToS3(
     contentType: "video/webm",
     folder: "screen-recordings",
   });
+}
+
+/**
+ * Delete a file from S3
+ * @param s3Url - Full S3 URL (e.g., https://bucket.s3.region.amazonaws.com/folder/file.ext)
+ */
+export async function deleteFromS3(s3Url: string): Promise<void> {
+  if (!s3Url) {
+    console.warn('⚠️ No S3 URL provided for deletion');
+    return;
+  }
+
+  const config = getS3Config();
+  const s3Client = getS3Client();
+
+  try {
+    // Extract key from URL
+    const url = new URL(s3Url);
+    let key = url.pathname.substring(1); // Remove leading slash
+
+    // Handle path-style URLs (s3.region.amazonaws.com/bucket/key)
+    if (url.hostname.startsWith('s3.')) {
+      const pathParts = url.pathname.split('/').filter(Boolean);
+      pathParts.shift(); // Remove bucket name
+      key = pathParts.join('/');
+    }
+
+    console.log(`🗑️ Deleting from S3: ${key}`);
+
+    const command = new DeleteObjectCommand({
+      Bucket: config.bucketName,
+      Key: key,
+    });
+
+    await s3Client.send(command);
+    console.log(`✅ Successfully deleted: ${key}`);
+  } catch (error: any) {
+    console.error(`❌ S3 Delete Error for ${s3Url}:`, error.message || error);
+    // Don't throw - we don't want deletion to fail if S3 file doesn't exist
+  }
+}
+
+/**
+ * Delete multiple files from S3
+ * @param s3Urls - Array of S3 URLs
+ */
+export async function deleteMultipleFromS3(s3Urls: string[]): Promise<void> {
+  const validUrls = s3Urls.filter(url => url && url.trim() !== '');
+  
+  if (validUrls.length === 0) {
+    console.log('ℹ️ No S3 URLs to delete');
+    return;
+  }
+
+  console.log(`🗑️ Deleting ${validUrls.length} file(s) from S3...`);
+
+  // Delete all files in parallel
+  await Promise.all(validUrls.map(url => deleteFromS3(url)));
+
+  console.log(`✅ Completed deletion of ${validUrls.length} file(s)`);
 }
