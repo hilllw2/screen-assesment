@@ -185,6 +185,7 @@ export function useAntiCheat({ submissionId, token, enabled = true }: UseAntiChe
 
     // 7. MULTIPLE MONITORS DETECTION
     const checkMultipleMonitors = () => {
+      // @ts-ignore - isExtended is experimental API
       if (window.screen.isExtended) {
         console.warn('⚠️ Multiple monitors detected - WARNING');
         // Just warn, don't disqualify immediately
