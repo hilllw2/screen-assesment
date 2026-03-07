@@ -19,7 +19,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Download, Search, Filter, Eye, FileText, CheckCircle, XCircle, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Download, Search, Filter, Eye, FileText, CheckCircle, XCircle, ThumbsUp, ThumbsDown, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 type Submission = {
@@ -88,6 +88,7 @@ export default function AdminSubmissionsPage() {
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // convert an array of submissions to CSV string with detailed data
   const submissionsToCSV = (data: Submission[]) => {
@@ -261,6 +262,31 @@ export default function AdminSubmissionsPage() {
       alert('Failed to update submission status');
     } finally {
       setUpdatingStatus(null);
+    }
+  };
+
+  const handleDelete = async (submissionId: string) => {
+    if (!confirm('Are you sure you want to delete this submission? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingId(submissionId);
+    try {
+      const response = await fetch(`/api/admin/submissions/${submissionId}/delete`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchSubmissions(); // Refresh the list
+      } else {
+        const data = await response.json();
+        alert(`Failed to delete submission: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+      alert('Failed to delete submission');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -487,6 +513,16 @@ export default function AdminSubmissionsPage() {
                         title={submission.exported ? 'Already Exported' : 'Mark as Exported'}
                       >
                         <Download className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleDelete(submission.id)}
+                        disabled={deletingId === submission.id}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        title="Delete Submission"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>

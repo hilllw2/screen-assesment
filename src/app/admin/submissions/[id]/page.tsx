@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Download, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 type Submission = {
   id: string;
@@ -101,9 +102,11 @@ export default function SubmissionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
+  const router = useRouter();
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
   const [presignedUrls, setPresignedUrls] = useState<{ [key: string]: string }>({});
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchSubmission();
@@ -209,6 +212,32 @@ export default function SubmissionDetailPage({
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this submission? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/admin/submissions/${resolvedParams.id}/delete`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert('Submission deleted successfully');
+        router.push('/admin/submissions');
+      } else {
+        const data = await response.json();
+        alert(`Failed to delete submission: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+      alert('Failed to delete submission');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getStatusBadge = (submission: Submission) => {
     if (submission.disqualified) {
       return <Badge variant="destructive">Disqualified</Badge>;
@@ -287,6 +316,14 @@ export default function SubmissionDetailPage({
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export
+          </Button>
+          <Button 
+            variant="destructive" 
+            size="sm"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
           </Button>
         </div>
       </div>
