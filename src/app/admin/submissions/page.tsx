@@ -19,7 +19,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Download, Search, Filter, Eye, FileText, CheckCircle, XCircle, ThumbsUp, ThumbsDown, Trash2 } from 'lucide-react';
+import { Download, Search, Filter, Eye, FileText, CheckCircle, XCircle, ThumbsUp, ThumbsDown, Trash2, CheckSquare, Square } from 'lucide-react';
 import Link from 'next/link';
 
 type Submission = {
@@ -89,6 +89,8 @@ export default function AdminSubmissionsPage() {
   const [exportingAll, setExportingAll] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // convert an array of submissions to CSV string with detailed data
   const submissionsToCSV = (data: Submission[]) => {
@@ -293,6 +295,67 @@ export default function AdminSubmissionsPage() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) {
+      alert('Please select at least one submission to delete');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} submission(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    setBulkDeleting(true);
+    
+    try {
+      // Delete all selected submissions in parallel
+      const deletePromises = Array.from(selectedIds).map(id =>
+        fetch(`/api/admin/submissions/${id}`, {
+          method: 'DELETE',
+        })
+      );
+
+      const results = await Promise.all(deletePromises);
+      const successCount = results.filter(r => r.ok).length;
+      const failCount = results.length - successCount;
+
+      // Remove successfully deleted submissions from local state
+      setSubmissions(prev => prev.filter(s => !selectedIds.has(s.id)));
+      setSelectedIds(new Set());
+
+      if (failCount > 0) {
+        alert(`Deleted ${successCount} submission(s). Failed to delete ${failCount} submission(s).`);
+      } else {
+        alert(`Successfully deleted ${successCount} submission(s)`);
+      }
+    } catch (error) {
+      console.error('Error bulk deleting submissions:', error);
+      alert('Failed to delete submissions');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredSubmissions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredSubmissions.map(s => s.id)));
+    }
+  };
+
   const filteredSubmissions = submissions.filter(submission => {
     const matchesSearch = 
       submission.candidate?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -356,6 +419,17 @@ export default function AdminSubmissionsPage() {
           <div className="text-xs text-gray-400 mt-1">v2.0 - Updated with filters</div>
         </div>
         <div className="flex gap-2">
+          {selectedIds.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {bulkDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Selected`}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -405,74 +479,105 @@ export default function AdminSubmissionsPage() {
 
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Candidate</TableHead>
-              <TableHead>Test</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Score</TableHead>
-              <TableHead>Started</TableHead>
-              <TableHead>Submitted</TableHead>
-              <TableHead>AI Scored</TableHead>
-              <TableHead>Exported</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+            <TableRow className="bg-gray-50">
+              <TableHead className="w-12">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleSelectAll}
+                  className="h-8 w-8 p-0"
+                >
+                  {selectedIds.size === filteredSubmissions.length && filteredSubmissions.length > 0 ? (
+                    <CheckSquare className="h-4 w-4" />
+                  ) : (
+                    <Square className="h-4 w-4" />
+                  )}
+                </Button>
+              </TableHead>
+              <TableHead className="font-semibold">Candidate</TableHead>
+              <TableHead className="font-semibold">Test</TableHead>
+              <TableHead className="font-semibold">Status</TableHead>
+              <TableHead className="font-semibold">Score</TableHead>
+              <TableHead className="font-semibold">Started</TableHead>
+              <TableHead className="font-semibold">Submitted</TableHead>
+              <TableHead className="font-semibold text-center">AI Scored</TableHead>
+              <TableHead className="font-semibold text-center">Exported</TableHead>
+              <TableHead className="text-right font-semibold">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredSubmissions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                   No submissions found
                 </TableCell>
               </TableRow>
             ) : (
               filteredSubmissions.map((submission) => (
-                <TableRow key={submission.id}>
+                <TableRow 
+                  key={submission.id}
+                  className={`hover:bg-gray-50 transition-colors ${selectedIds.has(submission.id) ? 'bg-blue-50' : ''}`}
+                >
                   <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleSelection(submission.id)}
+                      className="h-8 w-8 p-0"
+                    >
+                      {selectedIds.has(submission.id) ? (
+                        <CheckSquare className="h-4 w-4 text-blue-600" />
+                      ) : (
+                        <Square className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TableCell>
+                  <TableCell className="py-4">
                     <div>
                       <div className="font-medium">{submission.candidate?.name}</div>
                       <div className="text-sm text-gray-500">{submission.candidate?.email}</div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-4">
                     <div>
                       <div className="font-medium">{submission.test?.title}</div>
                       <div className="text-sm text-gray-500 capitalize">{submission.test?.type}</div>
                     </div>
                   </TableCell>
-                  <TableCell>{getStatusBadge(submission)}</TableCell>
-                  <TableCell>
+                  <TableCell className="py-4">{getStatusBadge(submission)}</TableCell>
+                  <TableCell className="py-4">
                     <div className="font-medium">
                       {getTotalScore(submission.scores)}
                       <span className="text-gray-500 text-sm"> / 20</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-4">
                     <div className="text-sm">
                       {new Date(submission.started_at).toLocaleDateString()}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-4">
                     <div className="text-sm">
                       {submission.submitted_at 
                         ? new Date(submission.submitted_at).toLocaleDateString()
                         : '-'}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-4 text-center">
                     {submission.ai_scored ? (
                       <Badge variant="secondary" className="text-xs">Yes</Badge>
                     ) : (
                       <Badge variant="outline" className="text-xs">No</Badge>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-4 text-center">
                     {submission.exported ? (
                       <Badge variant="secondary" className="text-xs">Yes</Badge>
                     ) : (
                       <Badge variant="outline" className="text-xs">No</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right py-4">
                     <div className="flex gap-1 justify-end">
                       {/* Pass/Fail buttons for submitted submissions */}
                       {submission.status === 'submitted' && !submission.disqualified && (
@@ -535,8 +640,17 @@ export default function AdminSubmissionsPage() {
           </TableBody>
         </Table>
 
-        <div className="p-4 border-t bg-gray-50 text-sm text-gray-600">
-          Showing {filteredSubmissions.length} of {submissions.length} submissions
+        <div className="p-4 border-t bg-gray-50">
+          <div className="flex justify-between items-center text-sm text-gray-600">
+            <div>
+              Showing {filteredSubmissions.length} of {submissions.length} submissions
+            </div>
+            {selectedIds.size > 0 && (
+              <div className="font-medium text-blue-600">
+                {selectedIds.size} selected
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
