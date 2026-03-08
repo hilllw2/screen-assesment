@@ -105,9 +105,8 @@ export default async function TestLandingPage({
             {test.type === "screening" ? (
               <>
                 <div>
-                  <h3 className="font-semibold mb-2">Assessment Outline:</h3>
+                  <h3 className="font-semibold mb-2">Outline</h3>
                   <ul className="list-disc list-inside space-y-1 text-sm">
-                    <li>Guidelines & Overview (Video)</li>
                     <li>Writing (7 minutes)</li>
                     <li>Problem Solving (12 minutes)</li>
                     <li>Personality Profile (10 minutes)</li>
