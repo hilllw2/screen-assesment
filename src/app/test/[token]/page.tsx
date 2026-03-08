@@ -87,14 +87,11 @@ export default async function TestLandingPage({
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center">
           <Badge className="mb-4" variant="secondary">
-            {test.type === "screening" ? "Screening Assessment" : "Upwork Video Test"}
+            Screening Assessment
           </Badge>
           <h1 className="text-4xl font-bold mb-2">
             Welcome to the Assessment
           </h1>
-          {test.title && (
-            <p className="text-xl text-muted-foreground">{test.title}</p>
-          )}
         </div>
 
         <Card>
@@ -108,13 +105,13 @@ export default async function TestLandingPage({
             {test.type === "screening" ? (
               <>
                 <div>
-                  <h3 className="font-semibold mb-2">Assessment Structure:</h3>
+                  <h3 className="font-semibold mb-2">Assessment Outline:</h3>
                   <ul className="list-disc list-inside space-y-1 text-sm">
-                    <li>Part 1: Guidelines & Overview (Video)</li>
-                    <li>Part 2: Writing Assessment (5 tasks, 7 minutes each)</li>
-                    <li>Part 3: Intelligence Test (20 questions, 12 minutes)</li>
-                    <li>Part 4: Personality Test (20 questions, 15 minutes)</li>
-                    <li>Part 5: Verbal Assessment (3 video questions with audio responses)</li>
+                    <li>Guidelines & Overview (Video)</li>
+                    <li>Writing (7 minutes)</li>
+                    <li>Problem Solving (12 minutes)</li>
+                    <li>Personality Profile (10 minutes)</li>
+                    <li>Verbal (3 minutes)</li>
                   </ul>
                 </div>
                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">

@@ -17,7 +17,7 @@ interface Question {
   option_d: string;
 }
 
-const TIME_LIMIT = 15 * 60; // 15 minutes in seconds
+const TIME_LIMIT = 10 * 60; // 10 minutes in seconds
 
 export default function PersonalityTestPage() {
   const params = useParams();

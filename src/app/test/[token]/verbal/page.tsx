@@ -28,7 +28,7 @@ const VERBAL_QUESTIONS = [
   },
 ];
 
-type Phase = "instruction" | "mic_check" | "preparation" | "question" | "recording" | "uploading" | "completed";
+type Phase = "instruction" | "mic_check" | "preparation" | "question" | "recording" | "timer" | "uploading" | "completed";
 
 export default function VerbalAssessmentPage() {
   const params = useParams();
@@ -42,13 +42,14 @@ export default function VerbalAssessmentPage() {
   const [isRecordingActive, setIsRecordingActive] = useState(false);
   const [micReady, setMicReady] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [timerSeconds, setTimerSeconds] = useState(60); // 1 minute timer
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const uploadedUrlsRef = useRef<string[]>([]);
-
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   // Enable anti-cheat monitoring
   useAntiCheat({ 
     submissionId: submissionId || '', 
@@ -67,8 +68,34 @@ export default function VerbalAssessmentPage() {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
     };
   }, []);
+
+  // Timer countdown
+  useEffect(() => {
+    if (phase === "timer") {
+      timerIntervalRef.current = setInterval(() => {
+        setTimerSeconds((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerIntervalRef.current!);
+            // Auto-proceed after timer ends
+            handleTimerComplete();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current);
+        }
+      };
+    }
+  }, [phase]);
 
   // Force play when switching to preparation/question video (browsers often block autoplay on 2nd+ video)
   useEffect(() => {
@@ -139,6 +166,9 @@ export default function VerbalAssessmentPage() {
       setIsRecordingActive(true);
     }
     setPhase("recording");
+    
+    // Reset timer for this question
+    setTimerSeconds(60);
   };
 
   const proceedToNext = async () => {
@@ -154,7 +184,12 @@ export default function VerbalAssessmentPage() {
 
     console.log(`📼 Audio chunks for question ${currentQuestion + 1}:`, audioChunksRef.current.length);
 
-    // Move to next question or finish (don't upload individual questions)
+    // Start 1-minute timer before moving to next question
+    setPhase("timer");
+  };
+
+  const handleTimerComplete = () => {
+    // Move to next question or finish after timer
     if (currentQuestion < VERBAL_QUESTIONS.length - 1) {
       setCurrentQuestion(prev => prev + 1);
       setPhase("preparation");
@@ -303,10 +338,11 @@ export default function VerbalAssessmentPage() {
                 {phase === "mic_check" && "Microphone Check"}
                 {(phase === "preparation" || phase === "question") && `Question ${currentQuestion + 1}`}
                 {phase === "recording" && "Recording Answer"}
+                {phase === "timer" && "Preparation Time"}
                 {phase === "uploading" && "Uploading..."}
               </CardTitle>
-              <Badge variant={isRecordingActive ? "destructive" : "secondary"}>
-                {isRecordingActive ? "Recording On" : "Status: " + phase}
+              <Badge variant={isRecordingActive ? "destructive" : phase === "timer" ? "default" : "secondary"}>
+                {isRecordingActive ? "Recording On" : phase === "timer" ? `${timerSeconds}s` : "Status: " + phase}
               </Badge>
             </div>
           </CardHeader>
@@ -372,6 +408,24 @@ export default function VerbalAssessmentPage() {
                 <Button size="lg" className="px-8" onClick={proceedToNext}>
                   Proceed <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
+              </div>
+            )}
+
+            {phase === "timer" && (
+              <div className="flex flex-col items-center py-10 space-y-6">
+                <div className="relative">
+                  <div className="w-32 h-32 rounded-full border-8 border-blue-200 flex items-center justify-center">
+                    <div className="text-5xl font-bold text-blue-600">
+                      {timerSeconds}
+                    </div>
+                  </div>
+                </div>
+                <h3 className="text-2xl font-bold">Preparation Time</h3>
+                <p className="text-gray-600 text-center max-w-md">
+                  Please wait {timerSeconds} second{timerSeconds !== 1 ? 's' : ''} before the next question.
+                  <br />
+                  Use this time to prepare yourself.
+                </p>
               </div>
             )}
 
