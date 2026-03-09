@@ -188,10 +188,6 @@ export default async function TestLandingPage({
             </form>
           </CardContent>
         </Card>
-
-        <div className="text-center text-sm text-muted-foreground">
-          <p>By starting this assessment, you agree to comply with all test rules and requirements.</p>
-        </div>
       </div>
     </div>
   );
