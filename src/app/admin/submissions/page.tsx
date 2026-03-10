@@ -70,12 +70,12 @@ const normalizeScore = (score: number, maxScore: number): number => {
 // Calculate total score out of 20
 const calculateTotalScore = (scores: Submission['scores']): number => {
   if (!scores) return 0;
-  
-  const intelligence = normalizeScore(scores.intelligence_score || 0, 20); // out of 5
-  const personality = normalizeScore(scores.personality_score || 0, 20); // out of 5
+
+  const intelligence = normalizeScore(scores.intelligence_score || 0, 30); // out of 5 (30 questions)
+  const personality = normalizeScore(scores.personality_score || 0, 180); // out of 5 (max 180 points)
   const audio = scores.audio_score_by_ai || scores.audio_score_by_human || 0; // already out of 5
   const writing = scores.written_test_score_by_ai || scores.written_test_score_by_human || 0; // already out of 5
-  
+
   return Math.round((intelligence + personality + audio + writing) * 10) / 10; // Round to 1 decimal
 };
 
@@ -105,9 +105,9 @@ export default function AdminSubmissionsPage() {
       'Disqualification Reason',
       'Current Phase',
       'Intelligence Score (out of 5)',
-      'Intelligence Raw Score (out of 20)',
+      'Intelligence Raw Score (out of 30)',
       'Personality Score (out of 5)',
-      'Personality Raw Score (out of 20)',
+      'Personality Raw Score (out of 180)',
       'Verbal Score (out of 5)',
       'Writing Score (out of 5)',
       'Total Score (out of 20)',
@@ -124,8 +124,8 @@ export default function AdminSubmissionsPage() {
     ];
 
     const rows = data.map((s) => {
-      const intelligenceNormalized = normalizeScore(s.scores?.intelligence_score || 0, 20);
-      const personalityNormalized = normalizeScore(s.scores?.personality_score || 0, 20);
+      const intelligenceNormalized = normalizeScore(s.scores?.intelligence_score || 0, 30);
+      const personalityNormalized = normalizeScore(s.scores?.personality_score || 0, 180);
       const verbalScore = s.scores?.audio_score_by_ai || s.scores?.audio_score_by_human || 0;
       const writingScore = s.scores?.written_test_score_by_ai || s.scores?.written_test_score_by_human || 0;
       const total = calculateTotalScore(s.scores);
