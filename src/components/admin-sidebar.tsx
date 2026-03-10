@@ -10,7 +10,8 @@ import {
   BarChart3,
   AlertTriangle,
   Link as LinkIcon,
-  ClipboardList
+  ClipboardList,
+  Settings
 } from 'lucide-react'
 
 const adminNavItems = [
@@ -43,6 +44,11 @@ const adminNavItems = [
     title: 'Violations',
     href: '/admin/violations',
     icon: AlertTriangle,
+  },
+  {
+    title: 'Settings',
+    href: '/admin/settings',
+    icon: Settings,
   },
 ]
 
