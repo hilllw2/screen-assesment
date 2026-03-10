@@ -759,12 +759,13 @@ export default function SubmissionDetailPage({
                   </div>
                   {submission.screen_recording_url.map((url, index) => {
                     const chunkKey = `screen_recording_${index}`;
+                    const totalChunks = submission.screen_recording_url?.length || 0;
                     return (
                       <Card key={chunkKey}>
                         <CardHeader>
                           <CardTitle className="text-lg">Screen Recording - Chunk {index + 1}</CardTitle>
                           <p className="text-sm text-gray-500 mt-1">
-                            Part {index + 1} of {submission.screen_recording_url.length} - Recorded in ~2 minute segments
+                            Part {index + 1} of {totalChunks} - Recorded in ~2 minute segments
                           </p>
                         </CardHeader>
                         <CardContent>
