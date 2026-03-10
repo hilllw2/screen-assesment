@@ -116,6 +116,39 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
+    // Fetch submission with all details for webhook
+    const { data: submission, error: fetchError } = await supabase
+      .from('submissions')
+      .select(`
+        *,
+        candidate:candidates (
+          id,
+          name,
+          email
+        ),
+        test:tests (
+          id,
+          title,
+          type,
+          webhook_url
+        ),
+        scores:submission_scores (
+          intelligence_score,
+          personality_score,
+          audio_score_by_ai,
+          written_test_score_by_ai,
+          audio_score_by_human,
+          written_test_score_by_human
+        )
+      `)
+      .eq('id', submissionId)
+      .single();
+
+    if (fetchError) {
+      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    }
+
+    // Update status
     const { error } = await supabase
       .from('submissions')
       .update({
@@ -126,6 +159,67 @@ export async function PATCH(request: Request) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Trigger webhook if status is 'passed'
+    if (status === 'passed') {
+      const testData = submission.test as any;
+      const candidateData = submission.candidate as any;
+      const scoresData = submission.scores as any;
+      
+      const webhookUrl = testData?.webhook_url;
+      
+      if (webhookUrl) {
+        // Calculate total score
+        const intelligenceScore = ((scoresData?.intelligence_score || 0) / 20) * 5;
+        const personalityScore = ((scoresData?.personality_score || 0) / 20) * 5;
+        const verbalScore = scoresData?.audio_score_by_ai || scoresData?.audio_score_by_human || 0;
+        const writingScore = scoresData?.written_test_score_by_ai || scoresData?.written_test_score_by_human || 0;
+        const totalScore = intelligenceScore + personalityScore + verbalScore + writingScore;
+
+        const webhookPayload = {
+          event: 'candidate_passed',
+          submission_id: submission.id,
+          candidate: {
+            id: candidateData?.id,
+            name: candidateData?.name,
+            email: candidateData?.email
+          },
+          test: {
+            id: testData?.id,
+            title: testData?.title,
+            type: testData?.type
+          },
+          scores: {
+            intelligence: parseFloat(intelligenceScore.toFixed(1)),
+            personality: parseFloat(personalityScore.toFixed(1)),
+            verbal: verbalScore,
+            writing: writingScore,
+            total: parseFloat(totalScore.toFixed(1)),
+            total_out_of: 20,
+            percentage: parseFloat(((totalScore / 20) * 100).toFixed(1))
+          },
+          timestamps: {
+            started_at: submission.started_at,
+            submitted_at: submission.submitted_at,
+            passed_at: new Date().toISOString()
+          }
+        };
+
+        // Send webhook (don't wait for it, fire and forget)
+        fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'ScreeningApp-Webhook/1.0'
+          },
+          body: JSON.stringify(webhookPayload)
+        }).then(response => {
+          console.log(`✅ Webhook sent to ${webhookUrl}:`, response.status);
+        }).catch(error => {
+          console.error(`❌ Webhook failed to ${webhookUrl}:`, error);
+        });
+      }
     }
 
     return NextResponse.json({ success: true });
