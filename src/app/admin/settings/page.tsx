@@ -148,6 +148,10 @@ export default function SettingsPage() {
               placeholder="https://your-webhook-url.com/endpoint"
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
+              onPaste={(e) => {
+                // Explicitly allow pasting in this field
+                e.stopPropagation();
+              }}
               className="font-mono text-sm"
             />
             <p className="text-xs text-gray-500">

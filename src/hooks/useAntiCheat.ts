@@ -16,6 +16,15 @@ export function useAntiCheat({ submissionId, token, enabled = true }: UseAntiChe
   useEffect(() => {
     if (!enabled || !submissionId) return;
 
+    // Only enable on test pages (prevent affecting admin/recruiter pages)
+    if (typeof window !== 'undefined') {
+      const pathname = window.location.pathname;
+      if (!pathname.includes('/test/')) {
+        console.log('🔓 Anti-cheat disabled - not on test page');
+        return;
+      }
+    }
+
     // Allow system dialogs (mic permission, screen share, etc.) for first 30 seconds
     const allowDialogsTimeout = setTimeout(() => {
       allowSystemDialogsRef.current = false;
