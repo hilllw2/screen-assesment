@@ -28,7 +28,7 @@ const VERBAL_QUESTIONS = [
   },
 ];
 
-type Phase = "instruction" | "mic_check" | "preparation" | "question" | "recording" | "timer" | "uploading" | "completed";
+type Phase = "instruction" | "mic_check" | "preparation" | "question" | "recording" | "uploading" | "completed";
 
 export default function VerbalAssessmentPage() {
   const params = useParams();
@@ -74,15 +74,15 @@ export default function VerbalAssessmentPage() {
     };
   }, []);
 
-  // Timer countdown
+  // Timer countdown during recording (60 seconds max per answer)
   useEffect(() => {
-    if (phase === "timer") {
+    if (phase === "recording") {
       timerIntervalRef.current = setInterval(() => {
         setTimerSeconds((prev) => {
           if (prev <= 1) {
             clearInterval(timerIntervalRef.current!);
-            // Auto-proceed after timer ends
-            handleTimerComplete();
+            // Auto-proceed to next question when 60 seconds is up
+            proceedToNext();
             return 0;
           }
           return prev - 1;
@@ -167,11 +167,16 @@ export default function VerbalAssessmentPage() {
     }
     setPhase("recording");
     
-    // Reset timer for this question
+    // Start 60-second countdown timer for answer
     setTimerSeconds(60);
   };
 
   const proceedToNext = async () => {
+    // Clear the timer
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
+    
     // Request final data and pause recording for current question
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       // Request any pending data before pausing
@@ -184,12 +189,7 @@ export default function VerbalAssessmentPage() {
 
     console.log(`📼 Audio chunks for question ${currentQuestion + 1}:`, audioChunksRef.current.length);
 
-    // Start 1-minute timer before moving to next question
-    setPhase("timer");
-  };
-
-  const handleTimerComplete = () => {
-    // Move to next question or finish after timer
+    // Move directly to next question (no prep time!)
     if (currentQuestion < VERBAL_QUESTIONS.length - 1) {
       setCurrentQuestion(prev => prev + 1);
       setPhase("preparation");
@@ -337,12 +337,11 @@ export default function VerbalAssessmentPage() {
                 {phase === "instruction" && "Start Instructions"}
                 {phase === "mic_check" && "Microphone Check"}
                 {(phase === "preparation" || phase === "question") && `Question ${currentQuestion + 1}`}
-                {phase === "recording" && "Recording Answer"}
-                {phase === "timer" && "Preparation Time"}
+                {phase === "recording" && `Recording Answer - ${timerSeconds}s remaining`}
                 {phase === "uploading" && "Uploading..."}
               </CardTitle>
-              <Badge variant={isRecordingActive ? "destructive" : phase === "timer" ? "default" : "secondary"}>
-                {isRecordingActive ? "Recording On" : phase === "timer" ? `${timerSeconds}s` : "Status: " + phase}
+              <Badge variant={isRecordingActive ? "destructive" : "secondary"}>
+                {isRecordingActive ? `🔴 REC ${timerSeconds}s` : "Status: " + phase}
               </Badge>
             </div>
           </CardHeader>
@@ -399,33 +398,33 @@ export default function VerbalAssessmentPage() {
             {phase === "recording" && (
               <div className="flex flex-col items-center py-10 space-y-6">
                 <div className="relative">
-                    <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-20"></div>
-                    <div className="bg-red-100 p-6 rounded-full relative z-10 border-2 border-red-500">
-                      <Mic className="w-12 h-12 text-red-600" />
-                    </div>
-                </div>
-                <h3 className="text-2xl font-bold">Recording...</h3>
-                <Button size="lg" className="px-8" onClick={proceedToNext}>
-                  Proceed <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            )}
-
-            {phase === "timer" && (
-              <div className="flex flex-col items-center py-10 space-y-6">
-                <div className="relative">
-                  <div className="w-32 h-32 rounded-full border-8 border-blue-200 flex items-center justify-center">
-                    <div className="text-5xl font-bold text-blue-600">
-                      {timerSeconds}
+                  <div className="w-40 h-40 rounded-full border-8 border-red-500 animate-pulse flex items-center justify-center bg-red-50">
+                    <div className="text-center">
+                      <div className="text-6xl font-bold text-red-600">
+                        {timerSeconds}
+                      </div>
+                      <div className="text-sm text-red-600 font-semibold mt-2">seconds left</div>
                     </div>
                   </div>
+                  <div className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-3 animate-pulse">
+                    <Mic className="w-6 h-6" />
+                  </div>
                 </div>
-                <h3 className="text-2xl font-bold">Preparation Time</h3>
-                <p className="text-gray-600 text-center max-w-md">
-                  Please wait {timerSeconds} second{timerSeconds !== 1 ? 's' : ''} before the next question.
-                  <br />
-                  Use this time to prepare yourself.
-                </p>
+                <div className="text-center max-w-md space-y-3">
+                  <h3 className="text-2xl font-bold">🎙️ Recording Your Answer</h3>
+                  <p className="text-gray-600">
+                    Speak clearly into your microphone. You have up to <strong>60 seconds</strong> to answer.
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Finished early? Click "Proceed to Next Question" below.
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    ⏱️ Auto-advances when timer reaches 0
+                  </p>
+                </div>
+                <Button size="lg" onClick={proceedToNext} className="px-8">
+                  <CheckCircle2 className="mr-2 h-5 w-5" /> Proceed to Next Question
+                </Button>
               </div>
             )}
 
