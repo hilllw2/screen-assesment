@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mic, Play, ArrowRight, Loader2, Volume2 } from "lucide-react";
+import { Mic, Play, ArrowRight, Loader2, Volume2, CheckCircle2 } from "lucide-react";
 import { VIDEO_URLS } from "@/config/video-urls";
 import { useAntiCheat } from "@/hooks/useAntiCheat";
 
