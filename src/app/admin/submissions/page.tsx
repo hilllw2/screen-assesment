@@ -546,9 +546,19 @@ export default function AdminSubmissionsPage() {
                   </TableCell>
                   <TableCell className="py-4">{getStatusBadge(submission)}</TableCell>
                   <TableCell className="py-4">
-                    <div className="font-medium">
-                      {getTotalScore(submission.scores)}
-                      <span className="text-gray-500 text-sm"> / 20</span>
+                    <div className="space-y-1">
+                      <div className="font-medium">
+                        {getTotalScore(submission.scores)}
+                        <span className="text-gray-500 text-sm"> / 20</span>
+                      </div>
+                      <div className="text-xs text-gray-500 flex gap-2">
+                        {submission.scores?.written_test_score_by_ai !== null && submission.scores?.written_test_score_by_ai !== undefined && (
+                          <span className="bg-orange-100 px-1.5 py-0.5 rounded">✍️ {submission.scores.written_test_score_by_ai.toFixed(1)}</span>
+                        )}
+                        {submission.scores?.audio_score_by_ai !== null && submission.scores?.audio_score_by_ai !== undefined && (
+                          <span className="bg-green-100 px-1.5 py-0.5 rounded">🎙️ {submission.scores.audio_score_by_ai.toFixed(1)}</span>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="py-4">

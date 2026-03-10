@@ -436,29 +436,45 @@ export default function SubmissionDetailPage({
               </div>
             </div>
             <div className="p-4 bg-orange-50 rounded-lg">
-              <div className="text-sm text-orange-600 mb-1">Writing</div>
+              <div className="text-sm text-orange-600 mb-1 font-semibold">Writing</div>
               <div className="text-2xl font-bold text-orange-900">
-                {submission.scores?.written_test_score_by_ai || submission.scores?.written_test_score_by_human || '-'}
-                {(submission.scores?.written_test_score_by_ai || submission.scores?.written_test_score_by_human) && 
+                {submission.scores?.written_test_score_by_ai !== null && submission.scores?.written_test_score_by_ai !== undefined
+                  ? submission.scores.written_test_score_by_ai.toFixed(1)
+                  : submission.scores?.written_test_score_by_human !== null && submission.scores?.written_test_score_by_human !== undefined
+                  ? submission.scores.written_test_score_by_human.toFixed(1)
+                  : '-'}
+                {((submission.scores?.written_test_score_by_ai !== null && submission.scores?.written_test_score_by_ai !== undefined) ||
+                  (submission.scores?.written_test_score_by_human !== null && submission.scores?.written_test_score_by_human !== undefined)) && 
                   <span className="text-sm text-orange-600 font-normal"> / 5</span>
                 }
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                {submission.scores?.written_test_score_by_ai ? 'AI Scored' : 
-                 submission.scores?.written_test_score_by_human ? 'Human Scored' : 'Not scored'}
+                {submission.scores?.written_test_score_by_ai !== null && submission.scores?.written_test_score_by_ai !== undefined
+                  ? '🤖 AI Scored' 
+                  : submission.scores?.written_test_score_by_human !== null && submission.scores?.written_test_score_by_human !== undefined
+                  ? '👤 Human Scored' 
+                  : '⏳ Not scored'}
               </div>
             </div>
             <div className="p-4 bg-green-50 rounded-lg">
-              <div className="text-sm text-green-600 mb-1">Verbal</div>
+              <div className="text-sm text-green-600 mb-1 font-semibold">Verbal</div>
               <div className="text-2xl font-bold text-green-900">
-                {submission.scores?.audio_score_by_ai || submission.scores?.audio_score_by_human || '-'}
-                {(submission.scores?.audio_score_by_ai || submission.scores?.audio_score_by_human) && 
+                {submission.scores?.audio_score_by_ai !== null && submission.scores?.audio_score_by_ai !== undefined
+                  ? submission.scores.audio_score_by_ai.toFixed(1)
+                  : submission.scores?.audio_score_by_human !== null && submission.scores?.audio_score_by_human !== undefined
+                  ? submission.scores.audio_score_by_human.toFixed(1)
+                  : '-'}
+                {((submission.scores?.audio_score_by_ai !== null && submission.scores?.audio_score_by_ai !== undefined) ||
+                  (submission.scores?.audio_score_by_human !== null && submission.scores?.audio_score_by_human !== undefined)) && 
                   <span className="text-sm text-green-600 font-normal"> / 5</span>
                 }
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                {submission.scores?.audio_score_by_ai ? 'AI Scored' : 
-                 submission.scores?.audio_score_by_human ? 'Human Scored' : 'Not scored'}
+                {submission.scores?.audio_score_by_ai !== null && submission.scores?.audio_score_by_ai !== undefined
+                  ? '🤖 AI Scored' 
+                  : submission.scores?.audio_score_by_human !== null && submission.scores?.audio_score_by_human !== undefined
+                  ? '👤 Human Scored' 
+                  : '⏳ Not scored'}
               </div>
             </div>
             <div className="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg border-2 border-indigo-200">
