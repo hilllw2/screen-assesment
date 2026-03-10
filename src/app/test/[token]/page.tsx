@@ -85,15 +85,6 @@ export default async function TestLandingPage({
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-center">
-          <Badge className="mb-4" variant="secondary">
-            Screening Assessment
-          </Badge>
-          <h1 className="text-4xl font-bold mb-2">
-            Welcome to the Assessment
-          </h1>
-        </div>
-
         <Card>
           <CardHeader>
             <CardTitle>Before You Begin</CardTitle>
