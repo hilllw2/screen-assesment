@@ -10,9 +10,17 @@ interface UseAntiCheatOptions {
 export function useAntiCheat({ submissionId, token, enabled = true }: UseAntiCheatOptions) {
   const router = useRouter();
   const violationReportedRef = useRef(false);
+  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const allowSystemDialogsRef = useRef(true); // Allow dialogs for first 30 seconds
 
   useEffect(() => {
     if (!enabled || !submissionId) return;
+
+    // Allow system dialogs (mic permission, screen share, etc.) for first 30 seconds
+    const allowDialogsTimeout = setTimeout(() => {
+      allowSystemDialogsRef.current = false;
+      console.log('🔒 Anti-cheat now in strict mode');
+    }, 30000);
 
     const reportViolation = async (violationType: string) => {
       // Only report once to avoid duplicate violations
@@ -47,14 +55,39 @@ export function useAntiCheat({ submissionId, token, enabled = true }: UseAntiChe
     };
 
     const handleBlur = () => {
-      console.error('🚨 Window lost focus - IMMEDIATE VIOLATION');
-      // Immediately report, no delay
-      reportViolation('tab_switch');
+      // Don't trigger during system dialogs (mic permission, screen share, etc.)
+      if (allowSystemDialogsRef.current) {
+        console.log('⚠️ Window blur ignored - system dialog allowed');
+        return;
+      }
+
+      // Clear any existing timeout
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+
+      // Wait 2 seconds before reporting - gives time for legitimate browser dialogs
+      blurTimeoutRef.current = setTimeout(() => {
+        // Only report if tab is actually hidden (not just a temporary dialog)
+        if (document.hidden || document.visibilityState === 'hidden') {
+          console.error('🚨 Window lost focus and tab is hidden - VIOLATION');
+          reportViolation('tab_switch');
+        } else {
+          console.log('⚠️ Window blur but tab visible - system dialog, ignoring');
+        }
+      }, 2000);
     };
 
     const handleFocus = () => {
+      // Cancel any pending blur violations when focus returns
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+        blurTimeoutRef.current = null;
+        console.log('✅ Focus returned - blur violation cancelled');
+      }
+
       // Check if tab was hidden while we had focus
-      if (document.hidden) {
+      if (!allowSystemDialogsRef.current && document.hidden) {
         console.error('🚨 Tab was hidden - VIOLATION');
         reportViolation('tab_switch');
       }
@@ -62,6 +95,11 @@ export function useAntiCheat({ submissionId, token, enabled = true }: UseAntiChe
 
     // Additional check using Page Visibility API
     const checkVisibility = () => {
+      // Skip during grace period for system dialogs
+      if (allowSystemDialogsRef.current) {
+        return;
+      }
+      
       if (document.visibilityState === 'hidden') {
         console.error('🚨 Page visibility hidden - VIOLATION');
         reportViolation('tab_switch');
@@ -231,6 +269,10 @@ export function useAntiCheat({ submissionId, token, enabled = true }: UseAntiChe
 
     // Cleanup
     return () => {
+      clearTimeout(allowDialogsTimeout);
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('focus', handleFocus);
