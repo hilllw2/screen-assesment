@@ -8,7 +8,7 @@ export async function POST(
   try {
     const { token } = await params;
     const body = await request.json();
-    const { submissionId, screenRecordingUrl } = body;
+    const { submissionId, screenRecordingUrl, isChunk, chunkNumber } = body;
 
     if (!submissionId || !screenRecordingUrl) {
       return NextResponse.json(
@@ -17,14 +17,19 @@ export async function POST(
       );
     }
 
-    console.log('💾 Saving screen recording URL:', { submissionId, screenRecordingUrl });
+    console.log('💾 Saving screen recording URL:', { 
+      submissionId, 
+      screenRecordingUrl,
+      isChunk,
+      chunkNumber 
+    });
 
     const supabase = createServiceRoleClient();
 
     // Verify token matches submission
     const { data: submission, error: fetchError } = await supabase
       .from('submissions')
-      .select('id, test_link_id, test_links!inner(token)')
+      .select('id, test_link_id, screen_recording_url, test_links!inner(token)')
       .eq('id', submissionId)
       .single();
 
@@ -46,11 +51,36 @@ export async function POST(
       );
     }
 
+    // If this is a chunk, append to existing array
+    let finalUrl: string | string[];
+    
+    if (isChunk) {
+      const existingUrl = submission.screen_recording_url;
+      
+      if (!existingUrl) {
+        // First chunk - create array
+        finalUrl = [screenRecordingUrl];
+      } else if (Array.isArray(existingUrl)) {
+        // Add to existing array
+        finalUrl = [...existingUrl, screenRecordingUrl];
+      } else if (typeof existingUrl === 'string') {
+        // Convert single URL to array
+        finalUrl = [existingUrl, screenRecordingUrl];
+      } else {
+        finalUrl = [screenRecordingUrl];
+      }
+      
+      console.log(`📦 Adding chunk #${chunkNumber} to array (total: ${Array.isArray(finalUrl) ? finalUrl.length : 1})`);
+    } else {
+      // Not a chunk - just save single URL
+      finalUrl = screenRecordingUrl;
+    }
+
     // Update submission with screen recording URL
     const { error: updateError } = await supabase
       .from('submissions')
       .update({
-        screen_recording_url: screenRecordingUrl,
+        screen_recording_url: finalUrl,
         updated_at: new Date().toISOString(),
       })
       .eq('id', submissionId);

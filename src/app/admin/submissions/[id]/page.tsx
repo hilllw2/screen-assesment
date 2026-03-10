@@ -24,7 +24,7 @@ type Submission = {
   writing_part_4_text: string | null;
   writing_part_5_text: string | null;
   audio_recording_url: string | null;
-  screen_recording_url: string | null;
+  screen_recording_url: string | string[] | null;
   verbal_question_1_url: string | null;
   verbal_question_2_url: string | null;
   verbal_question_3_url: string | null;
@@ -149,23 +149,50 @@ export default function SubmissionDetailPage({
     
     // Load presigned URL for screen recording
     if (submission.screen_recording_url) {
-      console.log('🖥️ Loading presigned URL for screen recording:', submission.screen_recording_url);
-      try {
-        const response = await fetch('/api/presigned-url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ s3Url: submission.screen_recording_url })
-        });
+      if (Array.isArray(submission.screen_recording_url)) {
+        // Handle multiple chunks
+        console.log(`🖥️ Loading presigned URLs for ${submission.screen_recording_url.length} screen recording chunks`);
         
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Got presigned URL for screen recording');
-          urls['screen_recording'] = data.presignedUrl;
-        } else {
-          console.error('❌ Failed to get presigned URL for screen recording');
+        for (let i = 0; i < submission.screen_recording_url.length; i++) {
+          const s3Url = submission.screen_recording_url[i];
+          try {
+            const response = await fetch('/api/presigned-url', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ s3Url })
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              urls[`screen_recording_${i}`] = data.presignedUrl;
+              console.log(`✅ Got presigned URL for screen recording chunk ${i + 1}`);
+            } else {
+              console.error(`❌ Failed to get presigned URL for chunk ${i + 1}`);
+            }
+          } catch (error) {
+            console.error(`❌ Failed to get presigned URL for screen recording chunk ${i + 1}:`, error);
+          }
         }
-      } catch (error) {
-        console.error('❌ Failed to get presigned URL for screen recording:', error);
+      } else {
+        // Handle single URL (legacy)
+        console.log('🖥️ Loading presigned URL for screen recording:', submission.screen_recording_url);
+        try {
+          const response = await fetch('/api/presigned-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ s3Url: submission.screen_recording_url })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Got presigned URL for screen recording');
+            urls['screen_recording'] = data.presignedUrl;
+          } else {
+            console.error('❌ Failed to get presigned URL for screen recording');
+          }
+        } catch (error) {
+          console.error('❌ Failed to get presigned URL for screen recording:', error);
+        }
       }
     }
     
@@ -705,59 +732,122 @@ export default function SubmissionDetailPage({
 
         <TabsContent value="screen-recording" className="space-y-4">
           {submission.screen_recording_url ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Screen Recording</CardTitle>
-                <p className="text-sm text-gray-500 mt-1">
-                  Full screen recording of the candidate's assessment session for proctoring purposes.
-                </p>
-              </CardHeader>
-              <CardContent>
-                {presignedUrls['screen_recording'] ? (
-                  <div className="space-y-2">
-                    <video controls className="w-full max-h-[600px] bg-black rounded">
-                      <source src={presignedUrls['screen_recording']} type="video/webm" />
-                      Your browser does not support the video element.
-                    </video>
-                    <div className="text-xs text-gray-500 space-y-1">
-                      <div>
-                        <a 
-                          href={presignedUrls['screen_recording']} 
-                          download="screen-recording.webm"
-                          className="text-blue-600 hover:underline"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Download Recording
-                        </a>
-                        {' · '}
-                        <a 
-                          href={presignedUrls['screen_recording']}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          Open in New Tab
-                        </a>
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        Original URL: {submission.screen_recording_url}
-                      </div>
-                    </div>
+            <>
+              {Array.isArray(submission.screen_recording_url) ? (
+                // Multiple chunks
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      📦 This recording was uploaded in <strong>{submission.screen_recording_url.length} chunks</strong> (streamed during test to avoid large upload at end)
+                    </p>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="text-sm text-gray-500">Loading presigned URL...</div>
-                    <div className="text-xs text-gray-400">
-                      S3 URL: {submission.screen_recording_url}
-                    </div>
-                    <div className="text-xs text-red-500 mt-2">
-                      If this persists, check browser console for errors.
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  {submission.screen_recording_url.map((url, index) => {
+                    const chunkKey = `screen_recording_${index}`;
+                    return (
+                      <Card key={chunkKey}>
+                        <CardHeader>
+                          <CardTitle className="text-lg">Screen Recording - Chunk {index + 1}</CardTitle>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Part {index + 1} of {submission.screen_recording_url.length} - Recorded in ~2 minute segments
+                          </p>
+                        </CardHeader>
+                        <CardContent>
+                          {presignedUrls[chunkKey] ? (
+                            <div className="space-y-2">
+                              <video controls className="w-full max-h-[600px] bg-black rounded">
+                                <source src={presignedUrls[chunkKey]} type="video/webm" />
+                                Your browser does not support the video element.
+                              </video>
+                              <div className="text-xs text-gray-500 space-y-1">
+                                <div>
+                                  <a 
+                                    href={presignedUrls[chunkKey]} 
+                                    download={`screen-recording-chunk-${index + 1}.webm`}
+                                    className="text-blue-600 hover:underline"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    Download Chunk {index + 1}
+                                  </a>
+                                  {' · '}
+                                  <a 
+                                    href={presignedUrls[chunkKey]}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline"
+                                  >
+                                    Open in New Tab
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <div className="text-sm text-gray-500">Loading presigned URL for chunk {index + 1}...</div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </>
+              ) : (
+                // Single URL (legacy or short recording)
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Screen Recording</CardTitle>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Full screen recording of the candidate's assessment session for proctoring purposes.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {presignedUrls['screen_recording'] ? (
+                      <div className="space-y-2">
+                        <video controls className="w-full max-h-[600px] bg-black rounded">
+                          <source src={presignedUrls['screen_recording']} type="video/webm" />
+                          Your browser does not support the video element.
+                        </video>
+                        <div className="text-xs text-gray-500 space-y-1">
+                          <div>
+                            <a 
+                              href={presignedUrls['screen_recording']} 
+                              download="screen-recording.webm"
+                              className="text-blue-600 hover:underline"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Download Recording
+                            </a>
+                            {' · '}
+                            <a 
+                              href={presignedUrls['screen_recording']}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              Open in New Tab
+                            </a>
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            Original URL: {submission.screen_recording_url}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-500">Loading presigned URL...</div>
+                        <div className="text-xs text-gray-400">
+                          S3 URL: {submission.screen_recording_url}
+                        </div>
+                        <div className="text-xs text-red-500 mt-2">
+                          If this persists, check browser console for errors.
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </>
           ) : (
             <Card>
               <CardContent className="py-8">

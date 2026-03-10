@@ -22,6 +22,9 @@ export default function GuidelinesPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+  const uploadIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const chunkCounterRef = useRef(0);
+  const isUploadingRef = useRef(false);
 
   useEffect(() => {
     if (!submissionId) {
@@ -35,6 +38,9 @@ export default function GuidelinesPage() {
     return () => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         // Don't stop here - let the test flow handle it
+      }
+      if (uploadIntervalRef.current) {
+        clearInterval(uploadIntervalRef.current);
       }
     };
   }, []);
@@ -73,47 +79,76 @@ export default function GuidelinesPage() {
         }
       };
 
-      mediaRecorder.onstop = async () => {
-        console.log('🛑 Screen recording stopped, uploading...');
-        // Upload immediately when stopped
-        const chunks = recordedChunksRef.current;
-        if (chunks.length > 0) {
-          const blob = new Blob(chunks, { type: 'video/webm' });
-          console.log(`📤 Uploading screen recording: ${blob.size} bytes from ${chunks.length} chunks`);
+      // Upload chunks in background every 2 minutes
+      const uploadChunks = async () => {
+        if (isUploadingRef.current || recordedChunksRef.current.length === 0) {
+          return;
+        }
 
+        isUploadingRef.current = true;
+        const chunksToUpload = [...recordedChunksRef.current];
+        const chunkNumber = chunkCounterRef.current++;
+        
+        console.log(`📤 Uploading chunk #${chunkNumber}: ${chunksToUpload.length} segments`);
+
+        try {
+          const blob = new Blob(chunksToUpload, { type: 'video/webm' });
           const formData = new FormData();
           formData.append('file', blob);
           formData.append('type', 'screen');
           formData.append('submissionId', submissionId!);
+          formData.append('chunkNumber', chunkNumber.toString());
 
-          try {
-            const response = await fetch('/api/upload', {
-              method: 'POST',
-              body: formData,
-            });
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
 
-            if (!response.ok) {
-              throw new Error('Upload failed');
-            }
-
+          if (response.ok) {
             const { url } = await response.json();
-            console.log('✅ Screen recording uploaded:', url);
-
-            // Save to database
+            console.log(`✅ Chunk #${chunkNumber} uploaded:`, url);
+            
+            // Save chunk URL to database
             await fetch(`/api/test/${token}/screen-recording`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 submissionId,
                 screenRecordingUrl: url,
+                isChunk: true,
+                chunkNumber,
               }),
             });
 
-            console.log('✅ Screen recording URL saved to database');
-          } catch (error) {
-            console.error('❌ Failed to upload screen recording:', error);
+            // Clear uploaded chunks from memory
+            recordedChunksRef.current = [];
+          } else {
+            console.error(`❌ Chunk #${chunkNumber} upload failed`);
           }
+        } catch (error) {
+          console.error(`❌ Error uploading chunk #${chunkNumber}:`, error);
+        } finally {
+          isUploadingRef.current = false;
         }
+      };
+
+      // Start periodic uploads every 2 minutes (120 seconds)
+      uploadIntervalRef.current = setInterval(uploadChunks, 120000);
+
+      mediaRecorder.onstop = async () => {
+        console.log('🛑 Screen recording stopped');
+        
+        // Clear upload interval
+        if (uploadIntervalRef.current) {
+          clearInterval(uploadIntervalRef.current);
+        }
+
+        // Upload any remaining chunks
+        if (recordedChunksRef.current.length > 0) {
+          await uploadChunks();
+        }
+
+        console.log('✅ All screen recording chunks uploaded');
       };
 
       // Detect if user stops sharing (clicks "Stop sharing" button)

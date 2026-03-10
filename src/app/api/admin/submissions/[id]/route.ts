@@ -132,7 +132,16 @@ export async function DELETE(
     // Collect all S3 URLs to delete
     const s3UrlsToDelete: string[] = [];
     if (submission.audio_recording_url) s3UrlsToDelete.push(submission.audio_recording_url);
-    if (submission.screen_recording_url) s3UrlsToDelete.push(submission.screen_recording_url);
+    
+    // Handle screen recording (can be single URL or array of chunks)
+    if (submission.screen_recording_url) {
+      if (Array.isArray(submission.screen_recording_url)) {
+        s3UrlsToDelete.push(...submission.screen_recording_url);
+      } else {
+        s3UrlsToDelete.push(submission.screen_recording_url);
+      }
+    }
+    
     if (submission.video_recording_url) s3UrlsToDelete.push(submission.video_recording_url);
     if (submission.verbal_question_1_url) s3UrlsToDelete.push(submission.verbal_question_1_url);
     if (submission.verbal_question_2_url) s3UrlsToDelete.push(submission.verbal_question_2_url);
