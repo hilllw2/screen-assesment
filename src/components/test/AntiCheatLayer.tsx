@@ -1,10 +1,21 @@
 
 "use client";
 import React, { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 // Minimal anti-cheat layer for layout
 export default function AntiCheatLayer({ children }: { children?: React.ReactNode }) {
+  const pathname = usePathname();
+  
+  // Check if we're on an admin or recruiter page
+  const isAdminOrRecruiter = pathname?.startsWith("/admin") || pathname?.startsWith("/recruiter");
+
   useEffect(() => {
+    // Skip anti-cheat for admin and recruiter pages
+    if (isAdminOrRecruiter) {
+      return;
+    }
+
     // Disable right-click context menu
     const handleContextMenu = (e: Event) => e.preventDefault();
     // Disable copy, cut, paste
@@ -35,6 +46,6 @@ export default function AntiCheatLayer({ children }: { children?: React.ReactNod
       document.removeEventListener("paste", handleCopyCutPaste);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [isAdminOrRecruiter]);
   return <>{children}</>;
 }
