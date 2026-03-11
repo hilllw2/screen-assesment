@@ -1,34 +1,71 @@
-import { createServiceRoleClient } from "@/lib/supabase/admin";
-import Link from "next/link";
+'use client';
+
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useParams } from "next/navigation";
 
-export default async function TestLandingPage({
-  params,
-}: {
-  params: Promise<{ token: string }>;
-}) {
-  const { token } = await params;
-  const supabase = createServiceRoleClient();
+export default function TestLandingPage() {
+  const params = useParams();
+  const token = params?.token as string;
+  const [testLink, setTestLink] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch test link and test details (candidates are not logged in; service role bypasses RLS)
-  const { data: testLink, error } = await supabase
-    .from("test_links")
-    .select(`
-      *,
-      tests (
-        id,
-        type,
-        title,
-        candidate_info_type,
-        created_at
-      )
-    `)
-    .eq("token", token)
-    .single();
+  useEffect(() => {
+    async function fetchTestLink() {
+      try {
+        const response = await fetch(`/api/test/${token}`);
+        const data = await response.json();
 
-  if (error || !testLink) {
+        if (!response.ok || data.error) {
+          setError("invalid");
+          setLoading(false);
+          return;
+        }
+
+        const link = data.testLink;
+
+        // Check if link is active
+        if (!link.is_active) {
+          setError("inactive");
+          setTestLink(link);
+          setLoading(false);
+          return;
+        }
+
+        // Check if link has expired
+        if (link.expires_at && new Date(link.expires_at) < new Date()) {
+          setError("expired");
+          setTestLink(link);
+          setLoading(false);
+          return;
+        }
+
+        setTestLink(link);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching test link:", err);
+        setError("invalid");
+        setLoading(false);
+      }
+    }
+
+    if (token) {
+      fetchTestLink();
+    }
+  }, [token]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    );
+  }
+
+  if (error === "invalid") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Card className="max-w-md">
@@ -45,8 +82,7 @@ export default async function TestLandingPage({
     );
   }
 
-  // Check if link is active
-  if (!testLink.is_active) {
+  if (error === "inactive") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Card className="max-w-md">
@@ -63,8 +99,7 @@ export default async function TestLandingPage({
     );
   }
 
-  // Check if link has expired
-  if (testLink.expires_at && new Date(testLink.expires_at) < new Date()) {
+  if (error === "expired" && testLink?.expires_at) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Card className="max-w-md">
@@ -81,8 +116,13 @@ export default async function TestLandingPage({
     );
   }
 
-  const test = (testLink as any).tests;
-  const isUpworkTest = test.candidate_info_type === 'upwork';
+  const test = testLink?.tests;
+  const isUpworkTest = test?.candidate_info_type === 'upwork';
+
+  // Handler to allow pasting in form fields
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.stopPropagation();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
@@ -158,6 +198,7 @@ export default async function TestLandingPage({
                   id="name"
                   name="name"
                   required
+                  onPaste={handlePaste}
                   className="w-full px-3 py-2 border rounded-md"
                   placeholder="John Doe"
                 />
@@ -172,6 +213,7 @@ export default async function TestLandingPage({
                     id="upwork_profile_url"
                     name="upwork_profile_url"
                     required
+                    onPaste={handlePaste}
                     className="w-full px-3 py-2 border rounded-md"
                     placeholder="https://www.upwork.com/freelancers/~..."
                   />
@@ -189,6 +231,7 @@ export default async function TestLandingPage({
                     id="email"
                     name="email"
                     required
+                    onPaste={handlePaste}
                     className="w-full px-3 py-2 border rounded-md"
                     placeholder="john@example.com"
                   />
