@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useEffect } from "react";
 import { usePathname } from "next/navigation";
@@ -9,17 +8,30 @@ export default function AntiCheatLayer({ children }: { children?: React.ReactNod
   
   // Check if we're on an admin or recruiter page
   const isAdminOrRecruiter = pathname?.startsWith("/admin") || pathname?.startsWith("/recruiter");
+  // Check if we're on the test landing page (before test starts)
+  const isTestLandingPage = pathname && /^\/test\/[^/]+$/.test(pathname);
 
   useEffect(() => {
-    // Skip anti-cheat for admin and recruiter pages
-    if (isAdminOrRecruiter) {
+    // Skip anti-cheat for admin, recruiter pages, and test landing page
+    if (isAdminOrRecruiter || isTestLandingPage) {
       return;
     }
 
     // Disable right-click context menu
     const handleContextMenu = (e: Event) => e.preventDefault();
-    // Disable copy, cut, paste
-    const handleCopyCutPaste = (e: Event) => e.preventDefault();
+    
+    // Disable copy, cut, paste - but allow paste in input fields
+    const handleCopyCutPaste = (e: Event) => {
+      // Allow paste in input/textarea fields
+      if (e.type === 'paste') {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+          return; // Allow paste in input fields
+        }
+      }
+      e.preventDefault();
+    };
+    
     // Attempt to block PrintScreen and common copy shortcuts
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -46,6 +58,6 @@ export default function AntiCheatLayer({ children }: { children?: React.ReactNod
       document.removeEventListener("paste", handleCopyCutPaste);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isAdminOrRecruiter]);
+  }, [isAdminOrRecruiter, isTestLandingPage]);
   return <>{children}</>;
 }
