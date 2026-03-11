@@ -10,12 +10,21 @@ export async function POST(
     const formData = await request.formData();
     
     const name = formData.get("name") as string;
-    const email = formData.get("email") as string;
+    const email = formData.get("email") as string | null;
+    const upwork_profile_url = formData.get("upwork_profile_url") as string | null;
     const { token } = await params;
 
-    if (!name || !email) {
+    if (!name) {
       return NextResponse.json(
-        { error: "Name and email are required" },
+        { error: "Name is required" },
+        { status: 400 }
+      );
+    }
+
+    // Must have either email or upwork profile URL
+    if (!email && !upwork_profile_url) {
+      return NextResponse.json(
+        { error: "Email or Upwork profile URL is required" },
         { status: 400 }
       );
     }
@@ -34,41 +43,75 @@ export async function POST(
       );
     }
 
-    // Create or find candidate
-    const { data: existingCandidate, error: existingCandidateError } = await supabase
-      .from("candidates")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (existingCandidateError) {
-      console.error("Error checking existing candidate:", existingCandidateError);
-    }
-
+    // Create or find candidate based on what info we have
     let candidateId;
-    if (existingCandidate) {
-      candidateId = existingCandidate.id;
-      // Update name if changed
-      await supabase
+    
+    if (email) {
+      // Look up by email
+      const { data: existingCandidate } = await supabase
         .from("candidates")
-        .update({ name })
-        .eq("id", candidateId);
-    } else {
-      const { data: newCandidate, error: candidateError } = await supabase
-        .from("candidates")
-        .insert({ name, email })
-        .select()
-        .single();
-      
-      if (candidateError || !newCandidate) {
-        // Handle race conditions where another request inserts same email first.
-        const { data: fallbackCandidate } = await supabase
-          .from("candidates")
-          .select("id")
-          .eq("email", email)
-          .maybeSingle();
+        .select("id")
+        .eq("email", email)
+        .maybeSingle();
 
-        if (!fallbackCandidate) {
+      if (existingCandidate) {
+        candidateId = existingCandidate.id;
+        // Update name if changed
+        await supabase
+          .from("candidates")
+          .update({ name })
+          .eq("id", candidateId);
+      } else {
+        const { data: newCandidate, error: candidateError } = await supabase
+          .from("candidates")
+          .insert({ name, email, upwork_profile_url: null })
+          .select()
+          .single();
+        
+        if (candidateError || !newCandidate) {
+          // Handle race conditions
+          const { data: fallbackCandidate } = await supabase
+            .from("candidates")
+            .select("id")
+            .eq("email", email)
+            .maybeSingle();
+
+          if (!fallbackCandidate) {
+            console.error("Error creating candidate:", candidateError);
+            return NextResponse.json(
+              { error: "Failed to create candidate" },
+              { status: 500 }
+            );
+          }
+
+          candidateId = fallbackCandidate.id;
+        } else {
+          candidateId = newCandidate.id;
+        }
+      }
+    } else {
+      // Upwork candidate - look up by upwork_profile_url
+      const { data: existingCandidate } = await supabase
+        .from("candidates")
+        .select("id")
+        .eq("upwork_profile_url", upwork_profile_url)
+        .maybeSingle();
+
+      if (existingCandidate) {
+        candidateId = existingCandidate.id;
+        // Update name if changed
+        await supabase
+          .from("candidates")
+          .update({ name })
+          .eq("id", candidateId);
+      } else {
+        const { data: newCandidate, error: candidateError } = await supabase
+          .from("candidates")
+          .insert({ name, email: null, upwork_profile_url })
+          .select()
+          .single();
+        
+        if (candidateError || !newCandidate) {
           console.error("Error creating candidate:", candidateError);
           return NextResponse.json(
             { error: "Failed to create candidate" },
@@ -76,8 +119,6 @@ export async function POST(
           );
         }
 
-        candidateId = fallbackCandidate.id;
-      } else {
         candidateId = newCandidate.id;
       }
     }

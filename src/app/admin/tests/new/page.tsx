@@ -26,6 +26,7 @@ export default function AdminNewTestPage() {
   const [formData, setFormData] = useState({
     type: "screening",
     title: "",
+    candidate_info_type: "email" as "email" | "upwork",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -110,6 +111,33 @@ export default function AdminNewTestPage() {
               />
               <p className="text-xs text-muted-foreground">
                 For internal reference only
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="candidate_info_type">Candidate Information Type *</Label>
+              <Select
+                value={formData.candidate_info_type}
+                onValueChange={(value: "email" | "upwork") =>
+                  setFormData({ ...formData, candidate_info_type: value })
+                }
+              >
+                <SelectTrigger id="candidate_info_type">
+                  <SelectValue placeholder="Select information type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="email">
+                    Name + Email (Normal)
+                  </SelectItem>
+                  <SelectItem value="upwork">
+                    Name + Upwork Profile URL
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {formData.candidate_info_type === "email"
+                  ? "Standard test - collects name and email address"
+                  : "For Upwork platform - collects name and Upwork profile URL instead of email"}
               </p>
             </div>
 

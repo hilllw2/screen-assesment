@@ -26,11 +26,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, title } = body;
+    const { type, title, candidate_info_type } = body;
 
     if (!type || (type !== "screening" && type !== "upwork")) {
       return NextResponse.json(
         { error: "Invalid test type" },
+        { status: 400 }
+      );
+    }
+
+    if (!candidate_info_type || (candidate_info_type !== "email" && candidate_info_type !== "upwork")) {
+      return NextResponse.json(
+        { error: "Invalid candidate_info_type" },
         { status: 400 }
       );
     }
@@ -42,6 +49,7 @@ export async function POST(request: NextRequest) {
         created_by_user_id: user.id,
         type,
         title: title || null,
+        candidate_info_type,
       })
       .select()
       .single();

@@ -21,6 +21,7 @@ export default async function TestLandingPage({
         id,
         type,
         title,
+        candidate_info_type,
         created_at
       )
     `)
@@ -81,6 +82,7 @@ export default async function TestLandingPage({
   }
 
   const test = (testLink as any).tests;
+  const isUpworkTest = test.candidate_info_type === 'upwork';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
@@ -160,19 +162,38 @@ export default async function TestLandingPage({
                   placeholder="John Doe"
                 />
               </div>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-2">
-                  Email Address *
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  required
-                  className="w-full px-3 py-2 border rounded-md"
-                  placeholder="john@example.com"
-                />
-              </div>
+              {isUpworkTest ? (
+                <div>
+                  <label htmlFor="upwork_profile_url" className="block text-sm font-medium mb-2">
+                    Upwork Profile URL *
+                  </label>
+                  <input
+                    type="url"
+                    id="upwork_profile_url"
+                    name="upwork_profile_url"
+                    required
+                    className="w-full px-3 py-2 border rounded-md"
+                    placeholder="https://www.upwork.com/freelancers/~..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Enter your full Upwork profile URL
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium mb-2">
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    className="w-full px-3 py-2 border rounded-md"
+                    placeholder="john@example.com"
+                  />
+                </div>
+              )}
               <Button type="submit" className="w-full" size="lg">
                 Start Assessment
               </Button>
