@@ -123,6 +123,36 @@ export async function POST(
       }
     }
 
+    // Check for duplicate submission - prevent candidate from taking same test twice
+    const { data: existingSubmission } = await supabase
+      .from("submissions")
+      .select("id, status, submitted_at")
+      .eq("candidate_id", candidateId)
+      .eq("test_id", (testLink as any).tests.id)
+      .maybeSingle();
+
+    if (existingSubmission) {
+      // Candidate already has a submission for this test
+      if (existingSubmission.status === "submitted" || existingSubmission.submitted_at) {
+        // Already completed - don't allow retake
+        return NextResponse.json(
+          { 
+            error: "You have already completed this test. Each candidate can only take the test once.",
+            code: "DUPLICATE_SUBMISSION"
+          },
+          { status: 409 } // 409 Conflict
+        );
+      } else {
+        // Has in-progress submission - redirect to it instead of creating new one
+        const test = (testLink as any).tests;
+        const redirectUrl = test.type === "screening" 
+          ? `/test/${token}/guidelines?sid=${existingSubmission.id}`
+          : `/test/${token}/upwork?sid=${existingSubmission.id}`;
+        
+        return NextResponse.redirect(new URL(redirectUrl, request.url));
+      }
+    }
+
     // Create submission
     const { data: submission, error: submissionError } = await supabase
       .from("submissions")

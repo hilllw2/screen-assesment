@@ -12,6 +12,8 @@ export default function TestLandingPage() {
   const [testLink, setTestLink] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     async function fetchTestLink() {
@@ -124,6 +126,42 @@ export default function TestLandingPage() {
     e.stopPropagation();
   };
 
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSubmitError(null);
+    setSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+    
+    try {
+      const response = await fetch(`/test/${token}/start`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.redirected) {
+        // Successful - follow redirect
+        window.location.href = response.url;
+        return;
+      }
+
+      if (!response.ok) {
+        const data = await response.json();
+        if (data.code === 'DUPLICATE_SUBMISSION') {
+          setSubmitError(data.error || 'You have already completed this test.');
+        } else {
+          setSubmitError(data.error || 'Failed to start test. Please try again.');
+        }
+        setSubmitting(false);
+      }
+    } catch (err) {
+      console.error('Form submission error:', err);
+      setSubmitError('An error occurred. Please try again.');
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -188,7 +226,14 @@ export default function TestLandingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={`/test/${token}/start`} method="POST" className="space-y-4">
+            {submitError && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800 font-medium">
+                  {submitError}
+                </p>
+              </div>
+            )}
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium mb-2">
                   Full Name *
@@ -198,8 +243,9 @@ export default function TestLandingPage() {
                   id="name"
                   name="name"
                   required
+                  disabled={submitting}
                   onPaste={handlePaste}
-                  className="w-full px-3 py-2 border rounded-md"
+                  className="w-full px-3 py-2 border rounded-md disabled:opacity-50"
                   placeholder="John Doe"
                 />
               </div>
@@ -213,8 +259,9 @@ export default function TestLandingPage() {
                     id="upwork_profile_url"
                     name="upwork_profile_url"
                     required
+                    disabled={submitting}
                     onPaste={handlePaste}
-                    className="w-full px-3 py-2 border rounded-md"
+                    className="w-full px-3 py-2 border rounded-md disabled:opacity-50"
                     placeholder="https://www.upwork.com/freelancers/~..."
                   />
                   <p className="text-xs text-gray-500 mt-1">
@@ -231,14 +278,15 @@ export default function TestLandingPage() {
                     id="email"
                     name="email"
                     required
+                    disabled={submitting}
                     onPaste={handlePaste}
-                    className="w-full px-3 py-2 border rounded-md"
+                    className="w-full px-3 py-2 border rounded-md disabled:opacity-50"
                     placeholder="john@example.com"
                   />
                 </div>
               )}
-              <Button type="submit" className="w-full" size="lg">
-                Start Assessment
+              <Button type="submit" className="w-full" size="lg" disabled={submitting}>
+                {submitting ? 'Starting...' : 'Start Assessment'}
               </Button>
             </form>
           </CardContent>

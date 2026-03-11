@@ -87,7 +87,7 @@ const normalizeScore = (score: number, maxScore: number): number => {
 const calculateTotalScore = (scores: Submission['scores']): number => {
   if (!scores) return 0;
   
-  const intelligence = normalizeScore(scores.intelligence_score || 0, 30); // out of 5 (30 questions)
+  const intelligence = normalizeScore(scores.intelligence_score || 0, 155); // out of 5 (31 questions × 5 points = 155)
   const personality = normalizeScore(scores.personality_score || 0, 180); // out of 5 (max 180 points)
   const audio = scores.audio_score_by_ai || scores.audio_score_by_human || 0; // already out of 5
   const writing = scores.written_test_score_by_ai || scores.written_test_score_by_human || 0; // already out of 5
@@ -418,11 +418,11 @@ export default function SubmissionDetailPage({
             <div className="p-4 bg-blue-50 rounded-lg">
               <div className="text-sm text-blue-600 mb-1">Intelligence</div>
               <div className="text-2xl font-bold text-blue-900">
-                {normalizeScore(submission.scores?.intelligence_score || 0, 30).toFixed(1)}
+                {normalizeScore(submission.scores?.intelligence_score || 0, 155).toFixed(1)}
                 <span className="text-sm text-blue-600 font-normal"> / 5</span>
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                ({submission.scores?.intelligence_score || 0} / 30 questions)
+                ({submission.scores?.intelligence_score || 0} / 155 max points)
               </div>
             </div>
             <div className="p-4 bg-purple-50 rounded-lg">
