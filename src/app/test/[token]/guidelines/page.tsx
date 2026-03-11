@@ -72,31 +72,42 @@ export default function GuidelinesPage() {
 
       mediaRecorderRef.current = mediaRecorder;
 
+      // Store chunks in window so they persist across page navigation
+      (window as any).__screenChunks = [];
+      (window as any).__chunkCounter = 0;
+      (window as any).__isUploading = false;
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           console.log(`🎬 Screen recording chunk: ${event.data.size} bytes`);
+          (window as any).__screenChunks.push(event.data);
           recordedChunksRef.current.push(event.data);
         }
       };
 
-      // Upload chunks in background every 2 minutes
+      // Upload chunks function - stored in window for access from other pages
       const uploadChunks = async () => {
-        if (isUploadingRef.current || recordedChunksRef.current.length === 0) {
+        const chunks = (window as any).__screenChunks || recordedChunksRef.current;
+        
+        if ((window as any).__isUploading || chunks.length === 0) {
           return;
         }
 
-        isUploadingRef.current = true;
-        const chunksToUpload = [...recordedChunksRef.current];
-        const chunkNumber = chunkCounterRef.current++;
+        (window as any).__isUploading = true;
+        const chunksToUpload = [...chunks];
+        const chunkNumber = (window as any).__chunkCounter++;
         
         console.log(`📤 Uploading chunk #${chunkNumber}: ${chunksToUpload.length} segments`);
+
+        const sid = (window as any).__submissionId || submissionId;
+        const tkn = (window as any).__token || token;
 
         try {
           const blob = new Blob(chunksToUpload, { type: 'video/webm' });
           const formData = new FormData();
           formData.append('file', blob);
           formData.append('type', 'screen');
-          formData.append('submissionId', submissionId!);
+          formData.append('submissionId', sid);
           formData.append('chunkNumber', chunkNumber.toString());
 
           const response = await fetch('/api/upload', {
@@ -109,11 +120,11 @@ export default function GuidelinesPage() {
             console.log(`✅ Chunk #${chunkNumber} uploaded:`, url);
             
             // Save chunk URL to database
-            await fetch(`/api/test/${token}/screen-recording`, {
+            await fetch(`/api/test/${tkn}/screen-recording`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                submissionId,
+                submissionId: sid,
                 screenRecordingUrl: url,
                 isChunk: true,
                 chunkNumber,
@@ -121,6 +132,7 @@ export default function GuidelinesPage() {
             });
 
             // Clear uploaded chunks from memory
+            (window as any).__screenChunks = [];
             recordedChunksRef.current = [];
           } else {
             console.error(`❌ Chunk #${chunkNumber} upload failed`);
@@ -128,23 +140,29 @@ export default function GuidelinesPage() {
         } catch (error) {
           console.error(`❌ Error uploading chunk #${chunkNumber}:`, error);
         } finally {
-          isUploadingRef.current = false;
+          (window as any).__isUploading = false;
         }
       };
 
+      // Store upload function in window for access from other pages
+      (window as any).__uploadScreenChunks = uploadChunks;
+
       // Start periodic uploads every 2 minutes (120 seconds)
       uploadIntervalRef.current = setInterval(uploadChunks, 120000);
+      (window as any).__uploadInterval = uploadIntervalRef.current;
 
       mediaRecorder.onstop = async () => {
         console.log('🛑 Screen recording stopped');
         
         // Clear upload interval
-        if (uploadIntervalRef.current) {
-          clearInterval(uploadIntervalRef.current);
+        const interval = (window as any).__uploadInterval || uploadIntervalRef.current;
+        if (interval) {
+          clearInterval(interval);
         }
 
         // Upload any remaining chunks
-        if (recordedChunksRef.current.length > 0) {
+        const chunks = (window as any).__screenChunks || recordedChunksRef.current;
+        if (chunks.length > 0) {
           await uploadChunks();
         }
 

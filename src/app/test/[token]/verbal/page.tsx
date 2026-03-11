@@ -232,15 +232,37 @@ export default function VerbalAssessmentPage() {
       // Get screen recorder from window
       const screenRecorder = (window as any).__screenRecorder;
       const screenStream = (window as any).__screenStream;
+      const uploadChunks = (window as any).__uploadScreenChunks;
+      const chunks = (window as any).__screenChunks || [];
+
+      // Clear the upload interval first
+      const interval = (window as any).__uploadInterval;
+      if (interval) {
+        clearInterval(interval);
+        (window as any).__uploadInterval = null;
+      }
+
+      // Upload any remaining chunks before stopping
+      if (chunks.length > 0 && uploadChunks) {
+        console.log(`📤 Uploading ${chunks.length} remaining screen recording chunks before stopping...`);
+        await uploadChunks();
+      }
 
       if (screenRecorder && screenRecorder.state !== 'inactive') {
         console.log('🛑 Stopping screen recording...');
         
-        // Stop recording (this will trigger the upload via onstop handler)
+        // Stop recording (this will trigger the onstop handler)
         screenRecorder.stop();
         
-        // Wait a bit for the upload to complete
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Wait for the onstop handler to complete any final uploads
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+
+      // Final check - upload any chunks that were created during stop
+      const finalChunks = (window as any).__screenChunks || [];
+      if (finalChunks.length > 0 && uploadChunks) {
+        console.log(`📤 Final upload of ${finalChunks.length} chunks...`);
+        await uploadChunks();
       }
 
       // Stop all tracks in the stream
@@ -248,7 +270,7 @@ export default function VerbalAssessmentPage() {
         screenStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
       }
 
-      console.log('✅ Screen recording stopped');
+      console.log('✅ Screen recording stopped and all chunks uploaded');
     } catch (error) {
       console.error('❌ Error stopping screen recording:', error);
       // Don't fail the whole submission if screen recording fails to stop
