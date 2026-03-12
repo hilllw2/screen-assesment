@@ -135,18 +135,28 @@ export default function VerbalAssessmentPage() {
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
 
+      // Store chunks for current question
+      let currentQuestionChunks: Blob[] = [];
+      
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           console.log(`📼 Audio chunk received: ${event.data.size} bytes`);
-          audioChunksRef.current.push(event.data);
+          currentQuestionChunks.push(event.data);
         }
       };
       
-      // Start recording immediately and keep recording continuously
-      // This avoids the pause/resume issue that corrupts WebM files
-      // The entire verbal assessment will be one continuous recording
-      mediaRecorder.start(1000);
-      console.log('🎙️ Started continuous audio recording for verbal assessment');
+      mediaRecorder.onstop = () => {
+        // When recording stops, save all chunks for this question
+        if (currentQuestionChunks.length > 0) {
+          const questionBlob = new Blob(currentQuestionChunks, { type: mimeType });
+          audioChunksRef.current.push(questionBlob);
+          console.log(`✅ Saved question recording: ${questionBlob.size} bytes`);
+          currentQuestionChunks = []; // Clear for next question
+        }
+      };
+      
+      // Store reference to currentQuestionChunks for access in other functions
+      (window as any).__currentQuestionChunks = currentQuestionChunks;
       
       setMicReady(true);
     } catch (error) {
@@ -160,9 +170,12 @@ export default function VerbalAssessmentPage() {
   };
 
   const startRecordingSegment = () => {
-    // Recording is already running continuously - just update UI state
-    setIsRecordingActive(true);
-    console.log(`🎙️ Recording answer for question ${currentQuestion + 1}`);
+    // Start a fresh recording for this question
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
+      mediaRecorderRef.current.start(1000);
+      setIsRecordingActive(true);
+      console.log(`🎙️ Started recording for question ${currentQuestion + 1}`);
+    }
     setPhase("recording");
     
     // Start 60-second countdown timer for answer
@@ -175,9 +188,15 @@ export default function VerbalAssessmentPage() {
       clearInterval(timerIntervalRef.current);
     }
     
-    // Recording continues - just update UI state
-    setIsRecordingActive(false);
-    console.log(`📼 Total audio chunks so far: ${audioChunksRef.current.length}`);
+    // Stop recording for this question (triggers onstop which saves the blob)
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop();
+      // Wait for onstop to complete
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setIsRecordingActive(false);
+    }
+    
+    console.log(`📼 Total question recordings saved: ${audioChunksRef.current.length}`);
 
     // Move directly to next question
     if (currentQuestion < VERBAL_QUESTIONS.length - 1) {
@@ -192,18 +211,13 @@ export default function VerbalAssessmentPage() {
     setPhase("uploading");
     
     // Stop the recorder to get any final data
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      // Request any pending data first
-      mediaRecorderRef.current.requestData();
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Now stop the recorder
+    // If still recording (shouldn't happen but just in case), stop it
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       mediaRecorderRef.current.stop();
-      // Wait for final ondataavailable event
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      console.log(`📼 Final audio chunks count: ${audioChunksRef.current.length}`);
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
+    
+    console.log(`📼 Total question recordings to combine: ${audioChunksRef.current.length}`);
 
     // Combine all 3 recordings into one audio file and upload
     await uploadCombinedRecording();
