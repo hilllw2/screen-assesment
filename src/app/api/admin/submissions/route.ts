@@ -170,12 +170,38 @@ export async function PATCH(request: Request) {
       const webhookUrl = testData?.webhook_url;
       
       if (webhookUrl) {
-        // Calculate total score
-        const intelligenceScore = ((scoresData?.intelligence_score || 0) / 20) * 5;
-        const personalityScore = ((scoresData?.personality_score || 0) / 20) * 5;
-        const verbalScore = scoresData?.audio_score_by_ai || scoresData?.audio_score_by_human || 0;
-        const writingScore = scoresData?.written_test_score_by_ai || scoresData?.written_test_score_by_human || 0;
-        const totalScore = intelligenceScore + personalityScore + verbalScore + writingScore;
+        // Calculate section scores (each out of 5), only counting sections that actually have scores.
+        const sectionScores: number[] = [];
+
+        if (typeof scoresData?.intelligence_score === 'number') {
+          const intelligenceScore = Math.round((scoresData.intelligence_score / 155) * 5 * 10) / 10;
+          sectionScores.push(intelligenceScore);
+        }
+
+        if (typeof scoresData?.personality_score === 'number') {
+          const personalityScore = Math.round((scoresData.personality_score / 180) * 5 * 10) / 10;
+          sectionScores.push(personalityScore);
+        }
+
+        const verbalScore =
+          scoresData?.audio_score_by_ai ?? scoresData?.audio_score_by_human;
+        if (typeof verbalScore === 'number') {
+          sectionScores.push(verbalScore);
+        }
+
+        const writingScore =
+          scoresData?.written_test_score_by_ai ?? scoresData?.written_test_score_by_human;
+        if (typeof writingScore === 'number') {
+          sectionScores.push(writingScore);
+        }
+
+        const hasScores = sectionScores.length > 0;
+        const averageSectionScore = hasScores
+          ? sectionScores.reduce((sum, s) => sum + s, 0) / sectionScores.length
+          : 0;
+
+        // Scale average (0–5) up to 0–20 for total
+        const totalScore = Math.round(averageSectionScore * 4 * 10) / 10;
 
         const webhookPayload = {
           event: 'candidate_passed',
@@ -191,10 +217,16 @@ export async function PATCH(request: Request) {
             type: testData?.type
           },
           scores: {
-            intelligence: parseFloat(intelligenceScore.toFixed(1)),
-            personality: parseFloat(personalityScore.toFixed(1)),
-            verbal: verbalScore,
-            writing: writingScore,
+            intelligence:
+              typeof scoresData?.intelligence_score === 'number'
+                ? Math.round((scoresData.intelligence_score / 155) * 5 * 10) / 10
+                : null,
+            personality:
+              typeof scoresData?.personality_score === 'number'
+                ? Math.round((scoresData.personality_score / 180) * 5 * 10) / 10
+                : null,
+            verbal: typeof verbalScore === 'number' ? verbalScore : null,
+            writing: typeof writingScore === 'number' ? writingScore : null,
             total: parseFloat(totalScore.toFixed(1)),
             total_out_of: 20,
             percentage: parseFloat(((totalScore / 20) * 100).toFixed(1))

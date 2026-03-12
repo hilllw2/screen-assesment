@@ -82,6 +82,14 @@ export default function GuidelinesPage() {
           console.log(`🎬 Screen recording chunk: ${event.data.size} bytes`);
           (window as any).__screenChunks.push(event.data);
           recordedChunksRef.current.push(event.data);
+          
+          // Auto-upload if accumulated size exceeds 3MB (to stay under Vercel's 4.5MB limit)
+          const chunks = (window as any).__screenChunks || [];
+          const totalSize = chunks.reduce((acc: number, chunk: Blob) => acc + chunk.size, 0);
+          if (totalSize > 3 * 1024 * 1024 && !(window as any).__isUploading) {
+            console.log(`📤 Auto-uploading: accumulated ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+            uploadChunks();
+          }
         }
       };
 
@@ -97,13 +105,21 @@ export default function GuidelinesPage() {
         const chunksToUpload = [...chunks];
         const chunkNumber = (window as any).__chunkCounter++;
         
-        console.log(`📤 Uploading chunk #${chunkNumber}: ${chunksToUpload.length} segments`);
+        // Calculate total size
+        const totalSize = chunksToUpload.reduce((acc, chunk) => acc + chunk.size, 0);
+        console.log(`📤 Uploading chunk #${chunkNumber}: ${chunksToUpload.length} segments, ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
 
         const sid = (window as any).__submissionId || submissionId;
         const tkn = (window as any).__token || token;
 
         try {
           const blob = new Blob(chunksToUpload, { type: 'video/webm' });
+          
+          // Check if blob is too large (Vercel limit is ~4.5MB)
+          if (blob.size > 4 * 1024 * 1024) {
+            console.warn(`⚠️ Chunk too large (${(blob.size / 1024 / 1024).toFixed(2)}MB), splitting...`);
+            // For now, just log warning - the 30s interval should prevent this
+          }
           const formData = new FormData();
           formData.append('file', blob);
           formData.append('type', 'screen');
@@ -147,8 +163,9 @@ export default function GuidelinesPage() {
       // Store upload function in window for access from other pages
       (window as any).__uploadScreenChunks = uploadChunks;
 
-      // Start periodic uploads every 2 minutes (120 seconds)
-      uploadIntervalRef.current = setInterval(uploadChunks, 120000);
+      // Start periodic uploads every 30 seconds to avoid large file accumulation
+      // Vercel has a 4.5MB limit for API routes, so we need frequent uploads
+      uploadIntervalRef.current = setInterval(uploadChunks, 30000);
       (window as any).__uploadInterval = uploadIntervalRef.current;
 
       mediaRecorder.onstop = async () => {

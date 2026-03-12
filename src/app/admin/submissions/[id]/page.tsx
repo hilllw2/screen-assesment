@@ -83,16 +83,43 @@ const normalizeScore = (score: number, maxScore: number): number => {
   return Math.round((score / maxScore) * 5 * 10) / 10; // Round to 1 decimal
 };
 
-// Calculate total score out of 20
+// Calculate total score out of 20.
+// IMPORTANT: Only include sections that actually have scores.
+// Missing Verbal/Written scores will NOT automatically drag total score to 0.
 const calculateTotalScore = (scores: Submission['scores']): number => {
   if (!scores) return 0;
-  
-  const intelligence = normalizeScore(scores.intelligence_score || 0, 155); // out of 5 (31 questions × 5 points = 155)
-  const personality = normalizeScore(scores.personality_score || 0, 180); // out of 5 (max 180 points)
-  const audio = scores.audio_score_by_ai || scores.audio_score_by_human || 0; // already out of 5
-  const writing = scores.written_test_score_by_ai || scores.written_test_score_by_human || 0; // already out of 5
-  
-  return Math.round((intelligence + personality + audio + writing) * 10) / 10; // Round to 1 decimal
+
+  const sectionScores: number[] = [];
+
+  // Intelligence – include if we have a raw score
+  if (typeof scores.intelligence_score === 'number') {
+    const intelligence = normalizeScore(scores.intelligence_score, 155);
+    sectionScores.push(intelligence);
+  }
+
+  // Personality – include if we have a raw score
+  if (typeof scores.personality_score === 'number') {
+    const personality = normalizeScore(scores.personality_score, 180);
+    sectionScores.push(personality);
+  }
+
+  // Verbal – include if a score exists (AI or human)
+  const audio = scores.audio_score_by_ai ?? scores.audio_score_by_human;
+  if (typeof audio === 'number') {
+    sectionScores.push(audio);
+  }
+
+  // Writing – include if a score exists (AI or human)
+  const writing = scores.written_test_score_by_ai ?? scores.written_test_score_by_human;
+  if (typeof writing === 'number') {
+    sectionScores.push(writing);
+  }
+
+  if (sectionScores.length === 0) return 0;
+
+  // Average of available sections (0–5) scaled to 0–20
+  const average = sectionScores.reduce((sum, s) => sum + s, 0) / sectionScores.length;
+  return Math.round(average * 4 * 10) / 10;
 };
 
 export default function SubmissionDetailPage({

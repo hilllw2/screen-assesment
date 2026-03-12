@@ -60,23 +60,47 @@ type Submission = {
   } | null;
 };
 
-// Helper function to normalize intelligence/personality scores to out of 5
-// Intelligence: 20 questions, so divide by 4 to get out of 5
-// Personality: 20 questions, so divide by 4 to get out of 5
 const normalizeScore = (score: number, maxScore: number): number => {
   return Math.round((score / maxScore) * 5 * 10) / 10; // Round to 1 decimal
 };
 
-// Calculate total score out of 20
+// Calculate total score out of 20.
+// IMPORTANT: We only count sections that have actually been scored.
+// Missing Verbal/Written scores will NOT drag the candidate down to 0.
 const calculateTotalScore = (scores: Submission['scores']): number => {
   if (!scores) return 0;
 
-  const intelligence = normalizeScore(scores.intelligence_score || 0, 30); // out of 5 (30 questions)
-  const personality = normalizeScore(scores.personality_score || 0, 180); // out of 5 (max 180 points)
-  const audio = scores.audio_score_by_ai || scores.audio_score_by_human || 0; // already out of 5
-  const writing = scores.written_test_score_by_ai || scores.written_test_score_by_human || 0; // already out of 5
+  const sectionScores: number[] = [];
 
-  return Math.round((intelligence + personality + audio + writing) * 10) / 10; // Round to 1 decimal
+  // Only include intelligence if we actually have a raw score (0 is allowed if they got everything wrong)
+  if (typeof scores.intelligence_score === 'number') {
+    const intelligence = normalizeScore(scores.intelligence_score, 155); // 31 questions × 5 points
+    sectionScores.push(intelligence);
+  }
+
+  // Only include personality if a raw score exists
+  if (typeof scores.personality_score === 'number') {
+    const personality = normalizeScore(scores.personality_score, 180); // max 180 points
+    sectionScores.push(personality);
+  }
+
+  // Verbal score (already out of 5) – include only if present
+  const audio = scores.audio_score_by_ai ?? scores.audio_score_by_human;
+  if (typeof audio === 'number') {
+    sectionScores.push(audio);
+  }
+
+  // Writing score (already out of 5) – include only if present
+  const writing = scores.written_test_score_by_ai ?? scores.written_test_score_by_human;
+  if (typeof writing === 'number') {
+    sectionScores.push(writing);
+  }
+
+  if (sectionScores.length === 0) return 0;
+
+  // Take the average of the available sections (each out of 5) and scale to 20.
+  const average = sectionScores.reduce((sum, s) => sum + s, 0) / sectionScores.length;
+  return Math.round(average * 4 * 10) / 10; // average (0–5) → 0–20, then round to 1 decimal
 };
 
 export default function AdminSubmissionsPage() {
@@ -91,6 +115,7 @@ export default function AdminSubmissionsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [selectedTest, setSelectedTest] = useState<string | null>(null);
 
   // convert an array of submissions to CSV string with detailed data
   const submissionsToCSV = (data: Submission[]) => {
@@ -124,10 +149,19 @@ export default function AdminSubmissionsPage() {
     ];
 
     const rows = data.map((s) => {
-      const intelligenceNormalized = normalizeScore(s.scores?.intelligence_score || 0, 30);
-      const personalityNormalized = normalizeScore(s.scores?.personality_score || 0, 180);
-      const verbalScore = s.scores?.audio_score_by_ai || s.scores?.audio_score_by_human || 0;
-      const writingScore = s.scores?.written_test_score_by_ai || s.scores?.written_test_score_by_human || 0;
+      const intelligenceRaw = s.scores?.intelligence_score;
+      const personalityRaw = s.scores?.personality_score;
+
+      const intelligenceNormalized =
+        typeof intelligenceRaw === 'number' ? normalizeScore(intelligenceRaw, 155) : 0;
+      const personalityNormalized =
+        typeof personalityRaw === 'number' ? normalizeScore(personalityRaw, 180) : 0;
+
+      const verbalScore =
+        s.scores?.audio_score_by_ai ?? s.scores?.audio_score_by_human ?? 0;
+      const writingScore =
+        s.scores?.written_test_score_by_ai ?? s.scores?.written_test_score_by_human ?? 0;
+
       const total = calculateTotalScore(s.scores);
       const percentage = ((total / 20) * 100).toFixed(1);
       
@@ -141,10 +175,10 @@ export default function AdminSubmissionsPage() {
         s.disqualified ? 'Yes' : 'No',
         s.disqualification_reason || '',
         s.current_phase || '',
-        intelligenceNormalized.toFixed(1),
-        s.scores?.intelligence_score?.toString() || '0',
+        intelligenceRaw != null ? intelligenceNormalized.toFixed(1) : '',
+        intelligenceRaw != null ? intelligenceRaw.toString() : '',
         personalityNormalized.toFixed(1),
-        s.scores?.personality_score?.toString() || '0',
+        personalityRaw != null ? personalityRaw.toString() : '',
         verbalScore.toString(),
         writingScore.toString(),
         total.toFixed(1),
@@ -356,6 +390,11 @@ export default function AdminSubmissionsPage() {
     }
   };
 
+  // Get unique test names for filtering
+  const uniqueTests = Array.from(
+    new Map(submissions.map(s => [s.test?.id, { id: s.test?.id, title: s.test?.title }])).values()
+  ).filter(t => t.id && t.title).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+
   const filteredSubmissions = submissions.filter(submission => {
     const matchesSearch = 
       submission.candidate?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -369,7 +408,9 @@ export default function AdminSubmissionsPage() {
       (exportFilter === 'exported' && submission.exported) ||
       (exportFilter === 'not_exported' && !submission.exported);
     
-    return matchesSearch && matchesStatus && matchesExport;
+    const matchesTest = !selectedTest || submission.test?.id === selectedTest;
+    
+    return matchesSearch && matchesStatus && matchesExport && matchesTest;
   });
 
   const getStatusBadge = (submission: Submission) => {
@@ -475,7 +516,63 @@ export default function AdminSubmissionsPage() {
               <SelectItem value="not_exported">Not Exported</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={selectedTest || 'all'} onValueChange={(v) => setSelectedTest(v === 'all' ? null : v)}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Filter by test" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Tests ({submissions.length})</SelectItem>
+              {uniqueTests.map(test => {
+                const count = submissions.filter(s => s.test?.id === test.id).length;
+                return (
+                  <SelectItem key={test.id} value={test.id!}>
+                    {test.title} ({count})
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
         </div>
+
+        {/* Active filters display */}
+        {(searchTerm || statusFilter !== 'all' || exportFilter !== 'all' || selectedTest) && (
+          <div className="px-4 pb-4 flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-gray-500">Active filters:</span>
+            {searchTerm && (
+              <Badge variant="secondary" className="text-xs">
+                Search: "{searchTerm}"
+              </Badge>
+            )}
+            {statusFilter !== 'all' && (
+              <Badge variant="secondary" className="text-xs">
+                Status: {statusFilter}
+              </Badge>
+            )}
+            {exportFilter !== 'all' && (
+              <Badge variant="secondary" className="text-xs">
+                Export: {exportFilter === 'exported' ? 'Exported' : 'Not Exported'}
+              </Badge>
+            )}
+            {selectedTest && (
+              <Badge variant="secondary" className="text-xs">
+                Test: {uniqueTests.find(t => t.id === selectedTest)?.title}
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('all');
+                setExportFilter('all');
+                setSelectedTest(null);
+              }}
+              className="text-xs h-6"
+            >
+              Clear all
+            </Button>
+          </div>
+        )}
 
         <Table>
           <TableHeader>
