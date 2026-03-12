@@ -142,9 +142,11 @@ export default function VerbalAssessmentPage() {
         }
       };
       
-      // Start with timeslice (1000ms) so chunks are available as we record
+      // Start recording immediately and keep recording continuously
+      // This avoids the pause/resume issue that corrupts WebM files
+      // The entire verbal assessment will be one continuous recording
       mediaRecorder.start(1000);
-      mediaRecorder.pause();
+      console.log('🎙️ Started continuous audio recording for verbal assessment');
       
       setMicReady(true);
     } catch (error) {
@@ -154,17 +156,13 @@ export default function VerbalAssessmentPage() {
   };
 
   const startTest = () => {
-    // MediaRecorder is ready but paused, we'll start it when each question begins
     setPhase("preparation");
   };
 
   const startRecordingSegment = () => {
-    // Start recording for this question
-    audioChunksRef.current = []; // Clear previous chunks
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "paused") {
-      mediaRecorderRef.current.resume();
-      setIsRecordingActive(true);
-    }
+    // Recording is already running continuously - just update UI state
+    setIsRecordingActive(true);
+    console.log(`🎙️ Recording answer for question ${currentQuestion + 1}`);
     setPhase("recording");
     
     // Start 60-second countdown timer for answer
@@ -177,19 +175,11 @@ export default function VerbalAssessmentPage() {
       clearInterval(timerIntervalRef.current);
     }
     
-    // Request final data and pause recording for current question
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      // Request any pending data before pausing
-      mediaRecorderRef.current.requestData();
-      // Wait a bit for the data event to fire
-      await new Promise(resolve => setTimeout(resolve, 100));
-      mediaRecorderRef.current.pause();
-      setIsRecordingActive(false);
-    }
+    // Recording continues - just update UI state
+    setIsRecordingActive(false);
+    console.log(`📼 Total audio chunks so far: ${audioChunksRef.current.length}`);
 
-    console.log(`📼 Audio chunks for question ${currentQuestion + 1}:`, audioChunksRef.current.length);
-
-    // Move directly to next question (no prep time!)
+    // Move directly to next question
     if (currentQuestion < VERBAL_QUESTIONS.length - 1) {
       setCurrentQuestion(prev => prev + 1);
       setPhase("preparation");
@@ -203,9 +193,16 @@ export default function VerbalAssessmentPage() {
     
     // Stop the recorder to get any final data
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      // Request any pending data first
+      mediaRecorderRef.current.requestData();
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Now stop the recorder
       mediaRecorderRef.current.stop();
       // Wait for final ondataavailable event
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log(`📼 Final audio chunks count: ${audioChunksRef.current.length}`);
     }
 
     // Combine all 3 recordings into one audio file and upload
