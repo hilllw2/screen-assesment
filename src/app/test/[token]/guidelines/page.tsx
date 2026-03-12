@@ -20,30 +20,12 @@ export default function GuidelinesPage() {
   const [screenSharingEnabled, setScreenSharingEnabled] = useState(false);
   const [screenRecordingError, setScreenRecordingError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
-  const uploadIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const chunkCounterRef = useRef(0);
-  const isUploadingRef = useRef(false);
 
   useEffect(() => {
     if (!submissionId) {
       router.push(`/test/${token}`);
     }
   }, [submissionId, router, token]);
-
-  // Store MediaRecorder in sessionStorage so other pages can access it
-  useEffect(() => {
-    // Cleanup on unmount
-    return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        // Don't stop here - let the test flow handle it
-      }
-      if (uploadIntervalRef.current) {
-        clearInterval(uploadIntervalRef.current);
-      }
-    };
-  }, []);
 
   const setupScreenRecording = async () => {
     try {
@@ -65,148 +47,19 @@ export default function GuidelinesPage() {
       const settings = videoTrack.getSettings();
       console.log('📺 Screen capture settings:', settings);
 
-      // Create MediaRecorder to record the screen
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp8',
-      });
-
-      mediaRecorderRef.current = mediaRecorder;
-
-      // Store chunks in window so they persist across page navigation
-      (window as any).__screenChunks = [];
-      (window as any).__chunkCounter = 0;
-      (window as any).__isUploading = false;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          console.log(`🎬 Screen recording chunk: ${event.data.size} bytes`);
-          (window as any).__screenChunks.push(event.data);
-          recordedChunksRef.current.push(event.data);
-          
-          // Auto-upload if accumulated size exceeds 3MB (to stay under Vercel's 4.5MB limit)
-          const chunks = (window as any).__screenChunks || [];
-          const totalSize = chunks.reduce((acc: number, chunk: Blob) => acc + chunk.size, 0);
-          if (totalSize > 3 * 1024 * 1024 && !(window as any).__isUploading) {
-            console.log(`📤 Auto-uploading: accumulated ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
-            uploadChunks();
-          }
-        }
-      };
-
-      // Upload chunks function - stored in window for access from other pages
-      const uploadChunks = async () => {
-        const chunks = (window as any).__screenChunks || recordedChunksRef.current;
-        
-        if ((window as any).__isUploading || chunks.length === 0) {
-          return;
-        }
-
-        (window as any).__isUploading = true;
-        const chunksToUpload = [...chunks];
-        const chunkNumber = (window as any).__chunkCounter++;
-        
-        // Calculate total size
-        const totalSize = chunksToUpload.reduce((acc, chunk) => acc + chunk.size, 0);
-        console.log(`📤 Uploading chunk #${chunkNumber}: ${chunksToUpload.length} segments, ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
-
-        const sid = (window as any).__submissionId || submissionId;
-        const tkn = (window as any).__token || token;
-
-        try {
-          const blob = new Blob(chunksToUpload, { type: 'video/webm' });
-          
-          // Check if blob is too large (Vercel limit is ~4.5MB)
-          if (blob.size > 4 * 1024 * 1024) {
-            console.warn(`⚠️ Chunk too large (${(blob.size / 1024 / 1024).toFixed(2)}MB), splitting...`);
-            // For now, just log warning - the 30s interval should prevent this
-          }
-          const formData = new FormData();
-          formData.append('file', blob);
-          formData.append('type', 'screen');
-          formData.append('submissionId', sid);
-          formData.append('chunkNumber', chunkNumber.toString());
-
-          const response = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (response.ok) {
-            const { url } = await response.json();
-            console.log(`✅ Chunk #${chunkNumber} uploaded:`, url);
-            
-            // Save chunk URL to database
-            await fetch(`/api/test/${tkn}/screen-recording`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                submissionId: sid,
-                screenRecordingUrl: url,
-                isChunk: true,
-                chunkNumber,
-              }),
-            });
-
-            // Clear uploaded chunks from memory
-            (window as any).__screenChunks = [];
-            recordedChunksRef.current = [];
-          } else {
-            console.error(`❌ Chunk #${chunkNumber} upload failed`);
-          }
-        } catch (error) {
-          console.error(`❌ Error uploading chunk #${chunkNumber}:`, error);
-        } finally {
-          (window as any).__isUploading = false;
-        }
-      };
-
-      // Store upload function in window for access from other pages
-      (window as any).__uploadScreenChunks = uploadChunks;
-
-      // Start periodic uploads every 30 seconds to avoid large file accumulation
-      // Vercel has a 4.5MB limit for API routes, so we need frequent uploads
-      uploadIntervalRef.current = setInterval(uploadChunks, 30000);
-      (window as any).__uploadInterval = uploadIntervalRef.current;
-
-      mediaRecorder.onstop = async () => {
-        console.log('🛑 Screen recording stopped');
-        
-        // Clear upload interval
-        const interval = (window as any).__uploadInterval || uploadIntervalRef.current;
-        if (interval) {
-          clearInterval(interval);
-        }
-
-        // Upload any remaining chunks
-        const chunks = (window as any).__screenChunks || recordedChunksRef.current;
-        if (chunks.length > 0) {
-          await uploadChunks();
-        }
-
-        console.log('✅ All screen recording chunks uploaded');
-      };
-
       // Detect if user stops sharing (clicks "Stop sharing" button)
       videoTrack.onended = () => {
         console.log('⚠️ User stopped screen sharing');
-        // We NO LONGER auto-disqualify here. Just warn the candidate.
-        alert('Screen sharing was stopped. Your screen recording may be incomplete, but you are not automatically disqualified.');
+        // We do NOT auto-disqualify here. Just warn the candidate.
+        alert('Screen sharing was stopped. Your screen may no longer be recorded, but you are not automatically disqualified.');
         setScreenSharingEnabled(false);
         setScreenRecordingError('Screen sharing was stopped. Screen recording may be incomplete.');
       };
 
-      // Start recording with timeslice for periodic chunks
-      mediaRecorder.start(10000); // Save chunks every 10 seconds
+      // Mark that screen sharing is enabled (we do not save the actual video)
       setScreenSharingEnabled(true);
       
-      console.log('🔴 Screen recording started');
-      
-      // Store stream reference in window so other pages can check if it's still active
-      (window as any).__screenStream = stream;
-      (window as any).__screenRecorder = mediaRecorder;
-      (window as any).__screenChunks = recordedChunksRef.current;
-      (window as any).__submissionId = submissionId;
-      (window as any).__token = token;
+      console.log('🔴 Screen sharing started (recording not saved to server)');
 
     } catch (error: any) {
       console.error('❌ Screen sharing error:', error);
@@ -219,12 +72,6 @@ export default function GuidelinesPage() {
         setScreenRecordingError(`Error: ${error.message}`);
       }
     }
-  };
-
-  const uploadScreenRecording = async () => {
-    // This function is kept for backward compatibility but the actual upload
-    // now happens in the onstop handler of the MediaRecorder
-    console.log('⚠️ uploadScreenRecording called but upload should happen in onstop handler');
   };
 
   const handleBeginAssessment = async () => {

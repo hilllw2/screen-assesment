@@ -64,6 +64,22 @@ const normalizeScore = (score: number, maxScore: number): number => {
   return Math.round((score / maxScore) * 5 * 10) / 10; // Round to 1 decimal
 };
 
+const formatDisqualificationReason = (reason: string | null): string => {
+  if (!reason) return '';
+  switch (reason) {
+    case 'tab_switch':
+      return 'Tab/window switch detected';
+    case 'copy_paste':
+      return 'Copy/paste detected';
+    case 'screen_share_stopped':
+      return 'Screen sharing stopped';
+    case 'multiple_violations':
+      return 'Multiple cheating violations';
+    default:
+      return reason.replace(/_/g, ' ');
+  }
+};
+
 // Calculate total score out of 20.
 // IMPORTANT: We only count sections that have actually been scored.
 // Missing Verbal/Written scores will NOT drag the candidate down to 0.
@@ -641,7 +657,16 @@ export default function AdminSubmissionsPage() {
                       <div className="text-sm text-gray-500 capitalize">{submission.test?.type}</div>
                     </div>
                   </TableCell>
-                  <TableCell className="py-4">{getStatusBadge(submission)}</TableCell>
+                  <TableCell className="py-4">
+                    <div className="space-y-1">
+                      {getStatusBadge(submission)}
+                      {submission.disqualified && submission.disqualification_reason && (
+                        <div className="text-xs text-red-500">
+                          Reason: {formatDisqualificationReason(submission.disqualification_reason)}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="py-4">
                     <div className="space-y-1">
                       <div className="font-medium">

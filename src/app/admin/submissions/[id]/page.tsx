@@ -15,6 +15,7 @@ type Submission = {
   disqualification_reason: string | null;
   started_at: string;
   submitted_at: string | null;
+  disqualified_at: string | null;
   ai_scored: boolean;
   exported: boolean;
   current_phase: string | null;
@@ -81,6 +82,22 @@ type Submission = {
 // Helper function to normalize intelligence/personality scores to out of 5
 const normalizeScore = (score: number, maxScore: number): number => {
   return Math.round((score / maxScore) * 5 * 10) / 10; // Round to 1 decimal
+};
+
+const formatDisqualificationReason = (reason: string | null): string => {
+  if (!reason) return '';
+  switch (reason) {
+    case 'tab_switch':
+      return 'Tab/window switch detected';
+    case 'copy_paste':
+      return 'Copy/paste detected';
+    case 'screen_share_stopped':
+      return 'Screen sharing stopped';
+    case 'multiple_violations':
+      return 'Multiple cheating violations';
+    default:
+      return reason.replace(/_/g, ' ');
+  }
 };
 
 // Calculate total score out of 20.
@@ -336,8 +353,15 @@ export default function SubmissionDetailPage({
             <p className="text-gray-500 mt-1">{submission.candidate.name}</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          {getStatusBadge(submission)}
+        <div className="flex gap-2 items-center">
+          <div className="flex flex-col items-end">
+            {getStatusBadge(submission)}
+            {submission.disqualified && (
+              <div className="text-xs text-red-500 mt-1">
+                {formatDisqualificationReason(submission.disqualification_reason) || 'Cheating detected'}
+              </div>
+            )}
+          </div>
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -384,7 +408,7 @@ export default function SubmissionDetailPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium text-gray-500">Timeline</CardTitle>
+          <CardTitle className="text-sm font-medium text-gray-500">Timeline</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -402,6 +426,16 @@ export default function SubmissionDetailPage({
                     : 'Not submitted'}
                 </div>
               </div>
+            {submission.disqualified && (
+              <div>
+                <div className="text-sm text-gray-500">Disqualified At</div>
+                <div className="font-medium">
+                  {submission.disqualified_at
+                    ? new Date(submission.disqualified_at).toLocaleString()
+                    : 'Marked as disqualified'}
+                </div>
+              </div>
+            )}
             </div>
           </CardContent>
         </Card>
