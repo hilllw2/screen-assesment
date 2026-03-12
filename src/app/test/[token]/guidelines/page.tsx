@@ -189,20 +189,10 @@ export default function GuidelinesPage() {
       // Detect if user stops sharing (clicks "Stop sharing" button)
       videoTrack.onended = () => {
         console.log('⚠️ User stopped screen sharing');
-        alert('Screen sharing was stopped. This will result in disqualification.');
-        
-        // Disqualify the submission
-        fetch(`/api/test/${token}/disqualify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            submissionId,
-            reason: 'tab_switch', // Reuse existing violation type
-          }),
-        });
-        
-        // Redirect to finish page
-        router.push(`/test/${token}/finish?sid=${submissionId}&disqualified=true`);
+        // We NO LONGER auto-disqualify here. Just warn the candidate.
+        alert('Screen sharing was stopped. Your screen recording may be incomplete, but you are not automatically disqualified.');
+        setScreenSharingEnabled(false);
+        setScreenRecordingError('Screen sharing was stopped. Screen recording may be incomplete.');
       };
 
       // Start recording with timeslice for periodic chunks
