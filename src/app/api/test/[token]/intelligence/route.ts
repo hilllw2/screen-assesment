@@ -102,11 +102,11 @@ export async function POST(
       );
     }
 
-    // Fetch questions with correct answers
+    // Fetch questions with option scores (NEW scoring system)
     const questionIds = Object.keys(answers);
     const { data: questions } = await supabase
       .from("questions")
-      .select("id, correct_option")
+      .select("id, score_option_a, score_option_b, score_option_c, score_option_d, correct_option")
       .in("id", questionIds);
 
     if (!questions) {
@@ -116,23 +116,43 @@ export async function POST(
       );
     }
 
-    // Calculate score and save answers
-    let correctCount = 0;
+    // Calculate score and save answers using NEW option-based scoring
+    let totalScore = 0;
     const answerRecords = [];
 
     for (const question of questions) {
       const selectedOption = answers[question.id];
-      const isCorrect =
-        selectedOption.toLowerCase() === question.correct_option?.toLowerCase();
       
-      if (isCorrect) correctCount++;
+      // Get score for the selected option (NEW system)
+      let scoreAwarded = 0;
+      switch (selectedOption.toLowerCase()) {
+        case 'a':
+          scoreAwarded = question.score_option_a || 0;
+          break;
+        case 'b':
+          scoreAwarded = question.score_option_b || 0;
+          break;
+        case 'c':
+          scoreAwarded = question.score_option_c || 0;
+          break;
+        case 'd':
+          scoreAwarded = question.score_option_d || 0;
+          break;
+      }
+      
+      totalScore += scoreAwarded;
+
+      // For backward compatibility: still set is_correct if correct_option exists
+      const isCorrect = question.correct_option 
+        ? selectedOption.toLowerCase() === question.correct_option.toLowerCase()
+        : null;
 
       answerRecords.push({
         submission_id: submissionId,
         question_id: question.id,
         selected_option: selectedOption,
         is_correct: isCorrect,
-        score_awarded: isCorrect ? 1 : 0,
+        score_awarded: scoreAwarded,
       });
     }
 
@@ -149,13 +169,11 @@ export async function POST(
       );
     }
 
-    // Calculate percentage score
-    const score = (correctCount / questions.length) * 100;
-
-    // Update submission_scores
+    // Update submission_scores with RAW SCORE (not percentage)
+    // Total possible: 31 questions × 5 points = 155 max
     const { error: scoreError } = await supabase
       .from("submission_scores")
-      .update({ intelligence_score: score })
+      .update({ intelligence_score: totalScore })
       .eq("submission_id", submissionId);
 
     if (scoreError) {
@@ -164,8 +182,8 @@ export async function POST(
 
     return NextResponse.json({
       message: "Answers saved successfully",
-      score,
-      correctCount,
+      totalScore,
+      maxScore: 155,
       totalQuestions: questions.length,
     });
   } catch (error) {
