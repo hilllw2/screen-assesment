@@ -18,38 +18,31 @@ export async function POST(
       );
     }
 
-    // Log violation
-    await supabase.from("submission_violations").insert({
+    // Log violation in submission_violations table
+    // This allows admin to review violations without auto-disqualifying
+    const { error: violationError } = await supabase.from("submission_violations").insert({
       submission_id: submissionId,
       violation_type: violationType,
       metadata: metadata || {},
       detected_at: new Date().toISOString(),
     });
 
-    // Disqualify submission with proper reason
-    const { error: updateError } = await supabase
-      .from("submissions")
-      .update({
-        disqualified: true,
-        disqualification_reason: violationType,
-        disqualified_at: new Date().toISOString(),
-        status: "disqualified",
-      })
-      .eq("id", submissionId);
-
-    if (updateError) {
-      console.error(`❌ Failed to disqualify ${submissionId}:`, updateError);
+    if (violationError) {
+      console.error(`❌ Failed to log violation for ${submissionId}:`, violationError);
       return NextResponse.json(
-        { error: "Failed to update submission" },
+        { error: "Failed to log violation" },
         { status: 500 }
       );
     }
 
-    console.log(`✅ Disqualified ${submissionId} for: ${violationType}`);
+    // Do NOT auto-disqualify - just log the violation
+    // Admin can review violations and manually disqualify if needed
+    console.log(`⚠️ Violation logged for ${submissionId}: ${violationType} (not auto-disqualified)`);
 
     return NextResponse.json({
-      message: "Violation logged and submission disqualified",
+      message: "Violation logged for review",
       violationType,
+      warning: "This behavior has been recorded and will be reviewed.",
     });
   } catch (error) {
     console.error("Error in violation API:", error);

@@ -16,14 +16,16 @@ export function QuestionTable({ questions }: QuestionTableProps) {
   const [loading, setLoading] = useState<string | null>(null)
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this question?')) return
+    if (!confirm('Are you sure you want to delete this question? This action cannot be undone.')) return
     
     setLoading(id)
     try {
       await deleteQuestion(id)
-      router.refresh()
+      // Force reload to refresh the list
+      window.location.reload()
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to delete question')
+      console.error('Delete error:', error)
+      alert(error instanceof Error ? error.message : 'Failed to delete question. It may be referenced by existing submissions.')
     } finally {
       setLoading(null)
     }

@@ -21,7 +21,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Fetch all submissions with related data
+  // Fetch all submissions with related data including violations
   const { data: submissions, error } = await supabase
     .from('submissions')
     .select(`
@@ -59,6 +59,10 @@ export async function GET() {
         written_test_score_by_ai,
         audio_score_by_human,
         written_test_score_by_human
+      ),
+      violations:submission_violations (
+        id,
+        violation_type
       )
     `)
     .order('created_at', { ascending: false });

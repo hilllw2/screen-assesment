@@ -91,6 +91,17 @@ export async function updateQuestion(input: UpdateQuestionInput) {
 export async function deleteQuestion(id: string) {
   const supabase = await createClient()
 
+  // Check if question is used in any submissions
+  const { data: answers } = await supabase
+    .from('submission_answers')
+    .select('id')
+    .eq('question_id', id)
+    .limit(1)
+
+  if (answers && answers.length > 0) {
+    throw new Error('Cannot delete question: it has been used in candidate submissions. Consider deactivating it instead.')
+  }
+
   const { error } = await supabase
     .from('questions')
     .delete()

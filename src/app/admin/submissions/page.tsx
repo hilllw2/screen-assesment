@@ -58,6 +58,10 @@ type Submission = {
     audio_score_by_human: number | null;
     written_test_score_by_human: number | null;
   } | null;
+  violations?: Array<{
+    id: string;
+    violation_type: string;
+  }>;
 };
 
 const normalizeScore = (score: number, maxScore: number): number => {
@@ -663,6 +667,12 @@ export default function AdminSubmissionsPage() {
                       {submission.disqualified && submission.disqualification_reason && (
                         <div className="text-xs text-red-500">
                           Reason: {formatDisqualificationReason(submission.disqualification_reason)}
+                        </div>
+                      )}
+                      {!submission.disqualified && submission.violations && submission.violations.length > 0 && (
+                        <div className="text-xs text-yellow-600 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          {submission.violations.length} violation{submission.violations.length > 1 ? 's' : ''}
                         </div>
                       )}
                     </div>

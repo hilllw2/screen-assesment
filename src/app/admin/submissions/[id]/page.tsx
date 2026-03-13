@@ -503,6 +503,50 @@ export default function SubmissionDetailPage({
         </CardContent>
       </Card>
 
+      {/* Violations Warning Card */}
+      {submission.violations && submission.violations.length > 0 && (
+        <Card className="border-yellow-300 bg-yellow-50">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              Cheating Violations Detected ({submission.violations.length})
+            </CardTitle>
+            <p className="text-sm text-yellow-700 mt-1">
+              The following suspicious activities were logged during this assessment. Review carefully before making a decision.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {submission.violations.map((violation) => (
+                <div key={violation.id} className="bg-white p-3 rounded border border-yellow-200">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">
+                        {formatDisqualificationReason(violation.violation_type)}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(violation.detected_at).toLocaleString()}
+                      </div>
+                      {violation.metadata && Object.keys(violation.metadata).length > 0 && (
+                        <div className="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded">
+                          <pre className="whitespace-pre-wrap">{JSON.stringify(violation.metadata, null, 2)}</pre>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 p-3 bg-yellow-100 rounded border border-yellow-300">
+              <p className="text-sm text-yellow-800">
+                💡 <strong>Note:</strong> These violations were logged but did not automatically disqualify the candidate. 
+                You can manually mark them as disqualified from the submissions list if needed.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="intelligence" className="space-y-4">
         <TabsList>
           <TabsTrigger value="intelligence">
