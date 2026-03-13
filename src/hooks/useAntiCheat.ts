@@ -39,17 +39,21 @@ export function useAntiCheat({ submissionId, token, enabled = true }: UseAntiChe
       console.error(`🚨 VIOLATION DETECTED: ${violationType}`);
 
       try {
-        await fetch(`/api/test/${token}/disqualify`, {
+        await fetch(`/api/test/${token}/violation`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             submissionId,
-            reason: violationType,
+            violationType,
+            metadata: {
+              timestamp: new Date().toISOString(),
+              userAgent: navigator.userAgent,
+            },
           }),
         });
 
         // Redirect to disqualification page
-        router.push(`/test/${token}/disqualified?sid=${submissionId}&reason=${violationType}`);
+        router.push(`/test/${token}/finish?sid=${submissionId}&disqualified=true`);
       } catch (error) {
         console.error('Failed to report violation:', error);
       }

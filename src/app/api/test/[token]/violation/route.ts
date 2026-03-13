@@ -26,8 +26,8 @@ export async function POST(
       detected_at: new Date().toISOString(),
     });
 
-    // Disqualify submission
-    await supabase
+    // Disqualify submission with proper reason
+    const { error: updateError } = await supabase
       .from("submissions")
       .update({
         disqualified: true,
@@ -37,8 +37,19 @@ export async function POST(
       })
       .eq("id", submissionId);
 
+    if (updateError) {
+      console.error(`❌ Failed to disqualify ${submissionId}:`, updateError);
+      return NextResponse.json(
+        { error: "Failed to update submission" },
+        { status: 500 }
+      );
+    }
+
+    console.log(`✅ Disqualified ${submissionId} for: ${violationType}`);
+
     return NextResponse.json({
-      message: "Violation logged",
+      message: "Violation logged and submission disqualified",
+      violationType,
     });
   } catch (error) {
     console.error("Error in violation API:", error);
