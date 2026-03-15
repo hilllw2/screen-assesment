@@ -42,6 +42,11 @@ type Submission = {
   scores: {
     intelligence_score: number;
     personality_score: number;
+    openness_score: number | null;
+    conscientiousness_score: number | null;
+    extraversion_score: number | null;
+    agreeableness_score: number | null;
+    neuroticism_score: number | null;
     audio_score_by_ai: number | null;
     written_test_score_by_ai: number | null;
     audio_score_by_human: number | null;
@@ -114,9 +119,9 @@ const calculateTotalScore = (scores: Submission['scores']): number => {
     sectionScores.push(intelligence);
   }
 
-  // Personality – include if we have a raw score
+  // Personality – already 0-100%, normalise to 0-5
   if (typeof scores.personality_score === 'number') {
-    const personality = normalizeScore(scores.personality_score, 180);
+    const personality = Math.round((scores.personality_score / 100) * 5 * 10) / 10;
     sectionScores.push(personality);
   }
 
@@ -438,14 +443,13 @@ export default function SubmissionDetailPage({
               </div>
             </div>
             <div className="p-4 bg-purple-50 rounded-lg">
-              <div className="text-sm text-purple-600 mb-1">Personality</div>
+              <div className="text-sm text-purple-600 mb-1">Personality (Overall)</div>
               <div className="text-2xl font-bold text-purple-900">
-                {normalizeScore(submission.scores?.personality_score || 0, 180).toFixed(1)}
-                <span className="text-sm text-purple-600 font-normal"> / 5</span>
+                {typeof submission.scores?.personality_score === 'number'
+                  ? `${submission.scores.personality_score.toFixed(1)}%`
+                  : '—'}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
-                ({submission.scores?.personality_score || 0} / 180 max points)
-              </div>
+              <div className="text-xs text-gray-500 mt-1">Big Five avg</div>
             </div>
             <div className="p-4 bg-orange-50 rounded-lg">
               <div className="text-sm text-orange-600 mb-1 font-semibold">Writing</div>
@@ -618,39 +622,101 @@ export default function SubmissionDetailPage({
         </TabsContent>
 
         <TabsContent value="personality" className="space-y-4">
-          {personalityAnswers.map((answer, index) => (
-            <Card key={answer.id}>
+          {/* Big Five trait breakdown */}
+          {submission.scores && (
+            <Card className="border-purple-200 bg-purple-50/30">
               <CardHeader>
-                <div className="text-sm text-gray-500">Question {index + 1}</div>
-                <div className="font-medium">{answer.question.prompt}</div>
+                <CardTitle className="text-base">Big Five Trait Scores</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-2">
-                  {['a', 'b', 'c', 'd'].map((option) => {
-                    const optionText = answer.question[`option_${option}` as keyof typeof answer.question] as string;
-                    const isSelected = answer.selected_option === option;
-                    
-                    return (
-                      <div
-                        key={option}
-                        className={`p-3 rounded border ${
-                          isSelected ? 'bg-blue-50 border-blue-500' : 'bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium uppercase">{option}.</span>
-                          <span>{optionText}</span>
-                        </div>
+              <CardContent className="space-y-3">
+                {[
+                  { key: 'openness_score', label: 'Openness', color: 'bg-purple-500' },
+                  { key: 'conscientiousness_score', label: 'Conscientiousness', color: 'bg-blue-500' },
+                  { key: 'extraversion_score', label: 'Extraversion', color: 'bg-emerald-500' },
+                  { key: 'agreeableness_score', label: 'Agreeableness', color: 'bg-amber-500' },
+                  { key: 'neuroticism_score', label: 'Neuroticism', color: 'bg-rose-500' },
+                ].map(({ key, label, color }) => {
+                  const pct = (submission.scores as any)?.[key];
+                  return (
+                    <div key={key}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="font-medium text-gray-700">{label}</span>
+                        <span className="font-semibold text-gray-900">{typeof pct === 'number' ? `${pct.toFixed(1)}%` : '—'}</span>
                       </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-3 text-sm text-gray-600">
-                  Score awarded: {answer.score_awarded}
-                </div>
+                      <div className="w-full bg-white rounded-full h-2.5 border border-gray-200">
+                        <div
+                          className={`${color} h-2.5 rounded-full transition-all`}
+                          style={{ width: typeof pct === 'number' ? `${pct}%` : '0%' }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </CardContent>
             </Card>
-          ))}
+          )}
+
+          {/* Per-question answers */}
+          {personalityAnswers.map((answer, index) => {
+            const trait = (answer.question as any).trait as string | undefined;
+            const traitColors: Record<string, string> = {
+              openness: 'bg-purple-50 border-purple-200',
+              conscientiousness: 'bg-blue-50 border-blue-200',
+              extraversion: 'bg-emerald-50 border-emerald-200',
+              agreeableness: 'bg-amber-50 border-amber-200',
+              neuroticism: 'bg-rose-50 border-rose-200',
+            };
+            const traitBadge: Record<string, string> = {
+              openness: 'bg-purple-100 text-purple-700',
+              conscientiousness: 'bg-blue-100 text-blue-700',
+              extraversion: 'bg-emerald-100 text-emerald-700',
+              agreeableness: 'bg-amber-100 text-amber-700',
+              neuroticism: 'bg-rose-100 text-rose-700',
+            };
+            return (
+              <Card key={answer.id} className={trait ? `border ${traitColors[trait] || ''}` : ''}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-sm text-gray-500">Question {index + 1}</div>
+                      <div className="font-medium mt-0.5">{answer.question.prompt}</div>
+                    </div>
+                    {trait && (
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize flex-shrink-0 ${traitBadge[trait] || 'bg-gray-100 text-gray-600'}`}>
+                        {trait}
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {['a', 'b', 'c', 'd', 'e'].map((option) => {
+                      const optionText = (answer.question as any)[`option_${option}`] as string | undefined;
+                      if (!optionText) return null;
+                      const isSelected = answer.selected_option === option;
+                      return (
+                        <div
+                          key={option}
+                          className={`p-3 rounded border text-sm ${
+                            isSelected ? 'bg-purple-50 border-purple-500 font-medium' : 'bg-gray-50 border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <span className="font-semibold uppercase text-gray-500">{option}.</span>
+                            <span>{optionText}</span>
+                            {isSelected && <span className="ml-auto text-purple-600">✓</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 text-sm text-gray-600">
+                    Score awarded: <strong>{answer.score_awarded}</strong>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </TabsContent>
 
         <TabsContent value="writing" className="space-y-4">

@@ -139,6 +139,11 @@ export async function PATCH(request: Request) {
         scores:submission_scores (
           intelligence_score,
           personality_score,
+          openness_score,
+          conscientiousness_score,
+          extraversion_score,
+          agreeableness_score,
+          neuroticism_score,
           audio_score_by_ai,
           written_test_score_by_ai,
           audio_score_by_human,
@@ -182,8 +187,9 @@ export async function PATCH(request: Request) {
           sectionScores.push(intelligenceScore);
         }
 
+        // Personality is now 0-100% — normalise to 0-5 for the composite score
         if (typeof scoresData?.personality_score === 'number') {
-          const personalityScore = Math.round((scoresData.personality_score / 180) * 5 * 10) / 10;
+          const personalityScore = Math.round((scoresData.personality_score / 100) * 5 * 10) / 10;
           sectionScores.push(personalityScore);
         }
 
@@ -225,10 +231,14 @@ export async function PATCH(request: Request) {
               typeof scoresData?.intelligence_score === 'number'
                 ? Math.round((scoresData.intelligence_score / 155) * 5 * 10) / 10
                 : null,
-            personality:
-              typeof scoresData?.personality_score === 'number'
-                ? Math.round((scoresData.personality_score / 180) * 5 * 10) / 10
-                : null,
+            personality: {
+              overall: typeof scoresData?.personality_score === 'number' ? scoresData.personality_score : null,
+              openness: typeof scoresData?.openness_score === 'number' ? scoresData.openness_score : null,
+              conscientiousness: typeof scoresData?.conscientiousness_score === 'number' ? scoresData.conscientiousness_score : null,
+              extraversion: typeof scoresData?.extraversion_score === 'number' ? scoresData.extraversion_score : null,
+              agreeableness: typeof scoresData?.agreeableness_score === 'number' ? scoresData.agreeableness_score : null,
+              neuroticism: typeof scoresData?.neuroticism_score === 'number' ? scoresData.neuroticism_score : null,
+            },
             verbal: typeof verbalScore === 'number' ? verbalScore : null,
             writing: typeof writingScore === 'number' ? writingScore : null,
             total: parseFloat(totalScore.toFixed(1)),
